@@ -202,7 +202,7 @@
      <enum>QFrame::Shadow::Raised</enum>
     </property>
    </widget>
-   <widget class="QFrame" name="frame">
+   <widget class="QFrame" name="gray_hist">
     <property name="geometry">
      <rect>
       <x>1010</x>
@@ -218,7 +218,7 @@
      <enum>QFrame::Shadow::Raised</enum>
     </property>
    </widget>
-   <widget class="QFrame" name="frame_2">
+   <widget class="QFrame" name="blue_hist">
     <property name="geometry">
      <rect>
       <x>1010</x>
@@ -234,7 +234,7 @@
      <enum>QFrame::Shadow::Raised</enum>
     </property>
    </widget>
-   <widget class="QFrame" name="frame_3">
+   <widget class="QFrame" name="red_hist">
     <property name="geometry">
      <rect>
       <x>1010</x>
@@ -250,7 +250,7 @@
      <enum>QFrame::Shadow::Raised</enum>
     </property>
    </widget>
-   <widget class="QFrame" name="frame_4">
+   <widget class="QFrame" name="green_hist">
     <property name="geometry">
      <rect>
       <x>1010</x>

@@ -35,11 +35,16 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         self.image_label.resize(self.img_frame.size())
         self.image_label.setScaledContents(True)  # Автоматическое масштабирование
         
+        
         # черно-белое из-ие
         self.gray_label = QLabel(self.gray_frame)
         self.gray_label.resize(self.gray_frame.size())
         self.gray_label.setScaledContents(True)
         
+        # гиста для чб
+        self.gray_hist_label = QLabel(self.gray_hist)
+        self.gray_hist_label.resize(self.gray_hist.size())
+        self.gray_hist_label.setScaledContents(True)
         
         
         # красное из-ие
@@ -47,16 +52,30 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         self.red_label.resize(self.red_frame.size())
         self.red_label.setScaledContents(True) 
         
+        # гиста для красного 
+        self.red_hist_label = QLabel(self.red_hist)
+        self.red_hist_label.resize(self.red_hist.size())
+        self.red_hist_label.setScaledContents(True)
+        
+        
         # синее из-ие
         self.blue_label = QLabel(self.blue_frame)
         self.blue_label.resize(self.blue_frame.size())
         self.blue_label.setScaledContents(True) 
         
+        self.blue_hist_label = QLabel(self.blue_hist)
+        self.blue_hist_label.resize(self.blue_hist.size())
+        self.blue_hist_label.setScaledContents(True)
+    
         # зеленое из-ие
         self.green_label = QLabel(self.green_frame)
         self.green_label.resize(self.green_frame.size())
         self.green_label.setScaledContents(True) 
         
+        self.green_hist_label = QLabel(self.green_hist)
+        self.green_hist_label.resize(self.green_hist.size())
+        self.green_hist_label.setScaledContents(True)
+    
         # курсорное окно
         self.cursor_label = QLabel(self.cursor_frame)
         self.green_label.resize(self.cursor_frame.size())
