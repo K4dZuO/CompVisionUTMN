@@ -1,0 +1,311 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Imchanger</class>
+ <widget class="QMainWindow" name="Imchanger">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1275</width>
+    <height>832</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <widget class="QFrame" name="img_frame">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>50</y>
+      <width>512</width>
+      <height>512</height>
+     </rect>
+    </property>
+    <property name="frameShape">
+     <enum>QFrame::Shape::StyledPanel</enum>
+    </property>
+    <property name="frameShadow">
+     <enum>QFrame::Shadow::Raised</enum>
+    </property>
+   </widget>
+   <widget class="QLabel" name="filename_label">
+    <property name="geometry">
+     <rect>
+      <x>200</x>
+      <y>10</y>
+      <width>331</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Your file</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
+    </property>
+   </widget>
+   <widget class="QScrollArea" name="modified">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>590</y>
+      <width>571</width>
+      <height>181</height>
+     </rect>
+    </property>
+    <property name="widgetResizable">
+     <bool>true</bool>
+    </property>
+    <widget class="QWidget" name="scrollAreaWidgetContents">
+     <property name="geometry">
+      <rect>
+       <x>0</x>
+       <y>0</y>
+       <width>569</width>
+       <height>179</height>
+      </rect>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QPushButton" name="load_button">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>10</y>
+      <width>161</width>
+      <height>26</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Load File</string>
+    </property>
+   </widget>
+   <widget class="QFrame" name="gray_frame">
+    <property name="geometry">
+     <rect>
+      <x>850</x>
+      <y>30</y>
+      <width>150</width>
+      <height>150</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QLabel" name="gray_text">
+    <property name="geometry">
+     <rect>
+      <x>740</x>
+      <y>70</y>
+      <width>121</width>
+      <height>91</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>W/B preview</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignmentFlag::AlignCenter</set>
+    </property>
+   </widget>
+   <widget class="QLabel" name="red_text">
+    <property name="geometry">
+     <rect>
+      <x>780</x>
+      <y>420</y>
+      <width>66</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Only red preview</string>
+    </property>
+    <property name="wordWrap">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QLabel" name="blue_text">
+    <property name="geometry">
+     <rect>
+      <x>770</x>
+      <y>250</y>
+      <width>66</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Only blue preview</string>
+    </property>
+    <property name="wordWrap">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QLabel" name="green_text">
+    <property name="geometry">
+     <rect>
+      <x>770</x>
+      <y>600</y>
+      <width>81</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Only green preview</string>
+    </property>
+    <property name="wordWrap">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QFrame" name="red_frame">
+    <property name="geometry">
+     <rect>
+      <x>850</x>
+      <y>370</y>
+      <width>150</width>
+      <height>150</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QFrame" name="blue_frame">
+    <property name="geometry">
+     <rect>
+      <x>850</x>
+      <y>200</y>
+      <width>150</width>
+      <height>150</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QFrame" name="green_frame">
+    <property name="geometry">
+     <rect>
+      <x>850</x>
+      <y>550</y>
+      <width>150</width>
+      <height>150</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QFrame" name="cursor_frame">
+    <property name="geometry">
+     <rect>
+      <x>560</x>
+      <y>100</y>
+      <width>161</width>
+      <height>161</height>
+     </rect>
+    </property>
+    <property name="frameShape">
+     <enum>QFrame::Shape::StyledPanel</enum>
+    </property>
+    <property name="frameShadow">
+     <enum>QFrame::Shadow::Raised</enum>
+    </property>
+   </widget>
+   <widget class="QFrame" name="frame">
+    <property name="geometry">
+     <rect>
+      <x>1010</x>
+      <y>30</y>
+      <width>251</width>
+      <height>151</height>
+     </rect>
+    </property>
+    <property name="frameShape">
+     <enum>QFrame::Shape::StyledPanel</enum>
+    </property>
+    <property name="frameShadow">
+     <enum>QFrame::Shadow::Raised</enum>
+    </property>
+   </widget>
+   <widget class="QFrame" name="frame_2">
+    <property name="geometry">
+     <rect>
+      <x>1010</x>
+      <y>200</y>
+      <width>251</width>
+      <height>151</height>
+     </rect>
+    </property>
+    <property name="frameShape">
+     <enum>QFrame::Shape::StyledPanel</enum>
+    </property>
+    <property name="frameShadow">
+     <enum>QFrame::Shadow::Raised</enum>
+    </property>
+   </widget>
+   <widget class="QFrame" name="frame_3">
+    <property name="geometry">
+     <rect>
+      <x>1010</x>
+      <y>370</y>
+      <width>251</width>
+      <height>151</height>
+     </rect>
+    </property>
+    <property name="frameShape">
+     <enum>QFrame::Shape::StyledPanel</enum>
+    </property>
+    <property name="frameShadow">
+     <enum>QFrame::Shadow::Raised</enum>
+    </property>
+   </widget>
+   <widget class="QFrame" name="frame_4">
+    <property name="geometry">
+     <rect>
+      <x>1010</x>
+      <y>550</y>
+      <width>251</width>
+      <height>151</height>
+     </rect>
+    </property>
+    <property name="frameShape">
+     <enum>QFrame::Shape::StyledPanel</enum>
+    </property>
+    <property name="frameShadow">
+     <enum>QFrame::Shadow::Raised</enum>
+    </property>
+   </widget>
+   <widget class="QLabel" name="coords_label">
+    <property name="geometry">
+     <rect>
+      <x>570</x>
+      <y>47</y>
+      <width>141</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Coords</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignmentFlag::AlignCenter</set>
+    </property>
+   </widget>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1275</width>
+     <height>23</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionload_file">
+   <property name="icon">
+    <iconset theme="QIcon::ThemeIcon::DocumentSave"/>
+   </property>
+   <property name="text">
+    <string>load_file</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
