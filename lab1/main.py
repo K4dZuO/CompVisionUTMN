@@ -8,6 +8,8 @@ import numpy as np
 
 # Импортируем сгенерированный UI
 from ui_main import Ui_Imchanger
+from helpers import get_histogram, draw_histogram_image
+
 
 
 class MainWindow(QMainWindow, Ui_Imchanger):
@@ -31,45 +33,63 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         
     def frames_setup(self):
         # главное из-ие
-        self.image_label = QLabel(self.img_frame)  # QLabel внутри img_frame для отображения
+        self.image_label = QLabel(self.img_frame)
         self.image_label.resize(self.img_frame.size())
-        self.image_label.setScaledContents(True)  # Автоматическое масштабирование
-        
+        self.image_label.setScaledContents(True)
+
         # черно-белое из-ие
         self.gray_label = QLabel(self.gray_frame)
         self.gray_label.resize(self.gray_frame.size())
         self.gray_label.setScaledContents(True)
-        
-        
-        
+
+        # гистограмма ч/б
+        self.gray_hist_label = QLabel(self.gray_hist)
+        self.gray_hist_label.resize(self.gray_hist.size())
+        self.gray_hist_label.setScaledContents(True)
+
         # красное из-ие
         self.red_label = QLabel(self.red_frame)
         self.red_label.resize(self.red_frame.size())
-        self.red_label.setScaledContents(True) 
-        
+        self.red_label.setScaledContents(True)
+
+        # гистограмма красного
+        self.red_hist_label = QLabel(self.red_hist)
+        self.red_hist_label.resize(self.red_hist.size())
+        self.red_hist_label.setScaledContents(True)
+
         # синее из-ие
         self.blue_label = QLabel(self.blue_frame)
         self.blue_label.resize(self.blue_frame.size())
-        self.blue_label.setScaledContents(True) 
-        
+        self.blue_label.setScaledContents(True)
+
+        # гистограмма синего
+        self.blue_hist_label = QLabel(self.blue_hist)
+        self.blue_hist_label.resize(self.blue_hist.size())
+        self.blue_hist_label.setScaledContents(True)
+
         # зеленое из-ие
         self.green_label = QLabel(self.green_frame)
         self.green_label.resize(self.green_frame.size())
-        self.green_label.setScaledContents(True) 
-        
+        self.green_label.setScaledContents(True)
+
+        # гистограмма зелёного
+        self.green_hist_label = QLabel(self.green_hist)
+        self.green_hist_label.resize(self.green_hist.size())
+        self.green_hist_label.setScaledContents(True)
+
         # курсорное окно
         self.cursor_label = QLabel(self.cursor_frame)
-        self.green_label.resize(self.cursor_frame.size())
-        self.green_label.setScaledContents(True) 
+        self.cursor_label.resize(self.cursor_frame.size())
+        self.cursor_label.setScaledContents(True)
         
-    
+        
     def display_original_image_in_frame(self):
         """Отображает текущее изображение в img_frame с масштабированием"""
         if self.original_pil is None:
             return
         pixmap = self.original_pil.toqpixmap()
         self.image_label.setPixmap(pixmap)
-     
+    
     
     def update_channel_previews(self):
         """Обновляет превью: ч/б и три цветовых канала"""
@@ -79,10 +99,14 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         img = self.original_np  # (H, W, 3) — RGB
 
         # === 1. Ч/Б (вручную): Y = 0.299*R + 0.587*G + 0.114*B ===
-        gray_only = np.dot(img[..., :3], [0.299, 0.587, 0.114]).astype(np.uint8)
-        gray_pil = Image.fromarray(gray_only)
+        gray_array = np.dot(img[..., :3], [0.299, 0.587, 0.114]).astype(np.uint8)
+        gray_pil = Image.fromarray(gray_array)
         gray_pixmap = gray_pil.toqpixmap()
         self.gray_label.setPixmap(gray_pixmap)
+
+        gray_hist = get_histogram(gray_array)
+        gray_hist_image = draw_histogram_image(gray_hist, color='gray')
+        self.gray_hist_label.setPixmap(gray_hist_image.toqpixmap())
 
         # === 2. Красный канал: R, G=0, B=0 ===
         red_only = np.zeros_like(img)
@@ -91,6 +115,12 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         red_pixmap = red_pil.toqpixmap()
         self.red_label.setPixmap(red_pixmap)
 
+        # --- Гистограмма красного ---
+        red_array = img[:, :, 0]
+        red_hist = get_histogram(red_array)
+        red_hist_image = draw_histogram_image(red_hist, color='red')
+        self.red_hist_label.setPixmap(red_hist_image.toqpixmap())
+
         # === 3. Зелёный канал: G, R=0, B=0 ===
         green_only = np.zeros_like(img)
         green_only[:, :, 1] = img[:, :, 1]
@@ -98,13 +128,24 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         green_pixmap = green_pil.toqpixmap()
         self.green_label.setPixmap(green_pixmap)
 
+        # --- Гистограмма зелёного ---
+        green_array = img[:, :, 1]
+        green_hist = get_histogram(green_array)
+        green_hist_image = draw_histogram_image(green_hist, color='green')
+        self.green_hist_label.setPixmap(green_hist_image.toqpixmap())
+
         # === 4. Синий канал: B, R=0, G=0 ===
         blue_only = np.zeros_like(img)
         blue_only[:, :, 2] = img[:, :, 2]
         blue_pil = Image.fromarray(blue_only)
         blue_pixmap = blue_pil.toqpixmap()
         self.blue_label.setPixmap(blue_pixmap)
-        
+
+        # --- Гистограмма синего ---
+        blue_array = img[:, :, 2]
+        blue_hist = get_histogram(blue_array)
+        blue_hist_image = draw_histogram_image(blue_hist, color='blue')
+        self.blue_hist_label.setPixmap(blue_hist_image.toqpixmap())
         
     def load_file(self):
         """Открывает диалог выбора файла и загружает изображение"""
