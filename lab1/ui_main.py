@@ -18,7 +18,7 @@ from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient,
     QTransform)
 from PySide6.QtWidgets import (QApplication, QFrame, QLabel, QMainWindow,
     QMenuBar, QPushButton, QScrollArea, QSizePolicy,
-    QStatusBar, QWidget)
+    QStatusBar, QWidget, QSlider)
 
 class Ui_Imchanger(object):
     def setupUi(self, Imchanger):
@@ -118,7 +118,48 @@ class Ui_Imchanger(object):
         self.statusbar = QStatusBar(Imchanger)
         self.statusbar.setObjectName(u"statusbar")
         Imchanger.setStatusBar(self.statusbar)
+        
+        self.negative_button = QPushButton(self.centralwidget)
+        self.negative_button.setObjectName(u"negative_button")
+        self.negative_button.setGeometry(QRect(560, 280, 111, 31))
 
+        self.reset_button = QPushButton(self.centralwidget)
+        self.reset_button.setObjectName(u"reset_button")
+        self.reset_button.setGeometry(QRect(680, 280, 111, 31))
+
+        self.brightness_slider = QSlider(self.centralwidget)
+        self.brightness_slider.setObjectName(u"brightness_slider")
+        self.brightness_slider.setGeometry(QRect(560, 330, 231, 22))
+        self.brightness_slider.setOrientation(Qt.Horizontal)
+        self.brightness_slider.setMinimum(-100)
+        self.brightness_slider.setMaximum(100)
+        self.brightness_slider.setValue(0)
+
+        self.brightness_label = QLabel(self.centralwidget)
+        self.brightness_label.setObjectName(u"brightness_label")
+        self.brightness_label.setGeometry(QRect(800, 325, 81, 31))
+        self.brightness_label.setAlignment(Qt.AlignLeft|Qt.AlignVCenter)
+
+        self.contrast_slider = QSlider(self.centralwidget)
+        self.contrast_slider.setObjectName(u"contrast_slider")
+        self.contrast_slider.setGeometry(QRect(560, 370, 231, 22))
+        self.contrast_slider.setOrientation(Qt.Horizontal)
+        self.contrast_slider.setMinimum(1)
+        self.contrast_slider.setMaximum(30)
+        self.contrast_slider.setValue(10)
+
+        self.contrast_label = QLabel(self.centralwidget)
+        self.contrast_label.setObjectName(u"contrast_label")
+        self.contrast_label.setGeometry(QRect(800, 365, 81, 31))
+        self.contrast_label.setAlignment(Qt.AlignLeft|Qt.AlignVCenter)
+
+        self.stats_label = QLabel(self.centralwidget)
+        self.stats_label.setObjectName(u"stats_label")
+        self.stats_label.setGeometry(QRect(20, 565, 571, 40))
+        self.stats_label.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignVCenter)
+        self.stats_label.setWordWrap(True)
+
+        
         self.retranslateUi(Imchanger)
 
         QMetaObject.connectSlotsByName(Imchanger)
@@ -134,5 +175,10 @@ class Ui_Imchanger(object):
         self.blue_text.setText(QCoreApplication.translate("Imchanger", u"Only blue preview", None))
         self.green_text.setText(QCoreApplication.translate("Imchanger", u"Only green preview", None))
         self.coords_label.setText(QCoreApplication.translate("Imchanger", u"Coords", None))
+        self.negative_button.setText(QCoreApplication.translate("Imchanger", u"Negative", None))
+        self.reset_button.setText(QCoreApplication.translate("Imchanger", u"Reset", None))
+        self.brightness_label.setText(QCoreApplication.translate("Imchanger", u"Brightness", None))
+        self.contrast_label.setText(QCoreApplication.translate("Imchanger", u"Contrast", None))
+        self.stats_label.setText(QCoreApplication.translate("Imchanger", u"Stats", None))
     # retranslateUi
 
