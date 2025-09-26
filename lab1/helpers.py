@@ -47,28 +47,25 @@ def custom_colormap_pillow(image_np):
     gray = np.array(img)
 
     # Нормализация к диапазону [0, 255]
-    norm = (gray - gray.min()) / (gray.ptp() + 1e-5) * 255
+    norm = (gray - gray.min()) / (np.ptp(gray) + 1e-5) * 255
     norm = norm.astype(np.uint8)
 
     # Простая псевдо-палитра (синий->зеленый->красный)
     colored = np.zeros((gray.shape[0], gray.shape[1], 3), dtype=np.uint8)
-    colored[..., 0] = 255 - norm            # красный канал уменьшается
-    colored[..., 1] = np.abs(128 - norm) * 2  # зелёный от серого
-    colored[..., 2] = norm                  # синий прямо из нормализованного
+    colored[..., 0] = 255 - norm
+    colored[..., 1] = np.abs(128 - norm) * 2
+    colored[..., 2] = norm
 
     return colored
-    
+
+
 def custom_colormap_manual(image_np):
     gray = cv2.cvtColor(image_np, cv2.COLOR_RGB2GRAY)
-    norm = (gray - gray.min()) / (gray.ptp() + 1e-5)
+    norm = (gray - gray.min()) / (np.ptp(gray) + 1e-5)
 
     colored = np.zeros((gray.shape[0], gray.shape[1], 3), dtype=np.uint8)
-
-    # Красный = высокий уровень
     colored[..., 0] = (norm * 255).astype(np.uint8)
-    # Зелёный = средние значения
     colored[..., 1] = ((1 - np.abs(norm - 0.5) * 2) * 255).astype(np.uint8)
-    # Синий = обратный уровень
     colored[..., 2] = ((1 - norm) * 255).astype(np.uint8)
 
     return colored

@@ -148,7 +148,10 @@ class Ui_Imchanger(object):
         self.grb_to_rgb_button.setObjectName(u"grb_to_rgb_button")
         self.grb_to_rgb_button.setGeometry(QRect(680, 360, 111, 31))
         
-
+        #self.pseudo_pillow_button.clicked.connect(self.apply_pseudo_pillow)
+        #self.pseudo_pillow_button.clicked.setObjectName(u"pil_pseudo_button")
+        #self.pseudo_manual_button.clicked.connect(self.apply_pseudo_manual)
+        
         self.brightness_slider = QSlider(self.centralwidget)
         self.brightness_slider.setObjectName(u"brightness_slider")
         self.brightness_slider.setGeometry(QRect(560, 430, 231, 22))
@@ -190,6 +193,14 @@ class Ui_Imchanger(object):
         self.stats_label.setAlignment(Qt.AlignLeading | Qt.AlignLeft | Qt.AlignTop)
         self.stats_label.setWordWrap(True)
         self.stats_area.setWidget(self.stats_label)
+        
+        self.pseudo_pillow_button = QPushButton(self.centralwidget)
+        self.pseudo_pillow_button.setObjectName(u"pseudo_pillow_button")
+        self.pseudo_pillow_button.setGeometry(QRect(35, 700, 120, 25))
+        self.pseudo_manual_button = QPushButton(self.centralwidget)
+        self.pseudo_manual_button.setObjectName(u"pseudo_manual_button")
+        self.pseudo_manual_button.setGeometry(QRect(35, 725, 120, 25))
+        
 
         
         self.retranslateUi(Imchanger)
@@ -217,5 +228,7 @@ class Ui_Imchanger(object):
         self.brightness_label.setText(QCoreApplication.translate("Imchanger", u"Brightness", None))
         self.contrast_label.setText(QCoreApplication.translate("Imchanger", u"Contrast", None))
         self.stats_label.setText(QCoreApplication.translate("Imchanger", u"Stats", None))
+        self.pseudo_pillow_button.setText(QCoreApplication.translate("Imchanger", u"pseudocolors PIL", None))
+        self.pseudo_manual_button.setText(QCoreApplication.translate("Imchanger", u"pseudocolors manual", None))
     # retranslateUi
 

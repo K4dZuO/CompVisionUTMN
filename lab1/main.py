@@ -8,7 +8,7 @@ from PIL.ImageQt import ImageQt
 import numpy as np
 
 from ui_main import Ui_Imchanger
-from helpers import get_histogram, draw_histogram_image
+from helpers import get_histogram, draw_histogram_image, custom_colormap_pillow, custom_colormap_manual
 
 
 class MainWindow(QMainWindow, Ui_Imchanger):
@@ -37,7 +37,8 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         self.brightness_slider.sliderReleased.connect(self.apply_transformations)
         self.contrast_slider.sliderReleased.connect(self.apply_transformations)
 
-        
+        self.pseudo_pillow_button.clicked.connect(self.apply_pseudo_pillow)
+        self.pseudo_manual_button.clicked.connect(self.apply_pseudo_manual)
 
         self.current_pil = None
         self.current_np = None
@@ -476,6 +477,31 @@ class MainWindow(QMainWindow, Ui_Imchanger):
     
     
         return stats_text
+        
+    def set_modified_image(self, np_img):
+        """Обновляет текущее изображение после применения фильтров"""
+        if np_img is None:
+            return
+        self.current_np = np_img
+        self.current_pil = Image.fromarray(np_img)
+
+        self.display_original_image_in_frame()
+        self.update_channel_previews()
+        self.update_stats()
+        self.update_previews()
+
+    
+    def apply_pseudo_pillow(self):
+        if self.current_np is None:
+            return
+        modified = custom_colormap_pillow(self.current_np)
+        self.set_modified_image(modified)
+
+    def apply_pseudo_manual(self):
+        if self.current_np is None:
+            return
+        modified = custom_colormap_manual(self.current_np)
+        self.set_modified_image(modified)
     
 
 if __name__ == "__main__":
