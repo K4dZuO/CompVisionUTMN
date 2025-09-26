@@ -1,18 +1,3 @@
-from typing import List
-from PIL import Image
-import numpy as np
-
-
-def get_histogram(image_2d: np.ndarray) -> np.ndarray:
-    """
-    Считает гистограмму вручную (с NumPy).
-    :param image_2d: 2D numpy array (grayscale или один цветовой канал)
-    :return: массив длиной 256 (гистограмма)
-    """
-    # Используем np.bincount — быстрее, чем цикл
-    hist, _ = np.histogram(image_2d.ravel(), bins=256, range=(0, 256))
-    return hist.astype(np.int32)
-
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')  # Без GUI-бэкенда
