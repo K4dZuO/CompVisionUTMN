@@ -175,6 +175,7 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         cy = int(py * img_h / lbl_h)
         cx = max(0, min(img_w - 1, cx))
         cy = max(0, min(img_h - 1, cy))
+        self.coords_label.setText(f"Coords: ({int(px)}, {int(py)})")
         self.update_cursor_window(cx, cy)
 
     def update_cursor_window(self, cx, cy):

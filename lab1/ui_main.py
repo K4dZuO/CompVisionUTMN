@@ -41,6 +41,7 @@ class Ui_Imchanger(object):
         self.filename_label.setObjectName(u"filename_label")
         self.filename_label.setGeometry(QRect(200, 10, 331, 31))
         self.filename_label.setAlignment(Qt.AlignmentFlag.AlignLeading|Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignVCenter)
+        '''
         self.modified = QScrollArea(self.centralwidget)
         self.modified.setObjectName(u"modified")
         self.modified.setGeometry(QRect(20, 590, 571, 181))
@@ -49,6 +50,7 @@ class Ui_Imchanger(object):
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
         self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 569, 179))
         self.modified.setWidget(self.scrollAreaWidgetContents)
+        '''
         self.load_button = QPushButton(self.centralwidget)
         self.load_button.setObjectName(u"load_button")
         self.load_button.setGeometry(QRect(20, 10, 161, 26))
@@ -152,12 +154,22 @@ class Ui_Imchanger(object):
         self.contrast_label.setObjectName(u"contrast_label")
         self.contrast_label.setGeometry(QRect(800, 365, 81, 31))
         self.contrast_label.setAlignment(Qt.AlignLeft|Qt.AlignVCenter)
-
+        
+        self.stats_area = QScrollArea(self.centralwidget)
+        self.stats_area.setGeometry(QRect(35, 600, 571, 80))
+        self.stats_area.setWidgetResizable(True)
+        
+        '''
         self.stats_label = QLabel(self.centralwidget)
         self.stats_label.setObjectName(u"stats_label")
-        self.stats_label.setGeometry(QRect(20, 565, 571, 40))
+        self.stats_label.setGeometry(QRect(35, 600, 571, 40))
         self.stats_label.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignVCenter)
         self.stats_label.setWordWrap(True)
+        '''
+        self.stats_label = QLabel()
+        self.stats_label.setAlignment(Qt.AlignLeading | Qt.AlignLeft | Qt.AlignTop)
+        self.stats_label.setWordWrap(True)
+        self.stats_area.setWidget(self.stats_label)
 
         
         self.retranslateUi(Imchanger)
