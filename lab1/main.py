@@ -19,6 +19,8 @@ class MainWindow(QMainWindow, Ui_Imchanger):
 
         self.frames_setup()
         self.load_button.clicked.connect(self.load_file)
+        self.save_button.clicked.connect(self.save_file)
+
 
         self.negative_button.clicked.connect(self.apply_negative)
         self.reset_button.clicked.connect(self.reset_image)
@@ -139,6 +141,7 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         self.blue_hist_label.setPixmap(self.pil_to_qpixmap(blue_hist_image).scaled(self.blue_hist_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
 
 
+    # загрузка / сохранение
     def load_file(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Открыть изображение", "", "Изображения (*.png *.bmp *.tiff *.tif);;Все файлы (*)")
         if not file_path:
@@ -158,6 +161,27 @@ class MainWindow(QMainWindow, Ui_Imchanger):
             self.update_channel_previews()
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Не удалось загрузить изображение:\n{str(e)}")
+
+    def save_file(self):
+        if self.current_pil is None:
+            QMessageBox.warning(self, "Attention", "No image for save")
+            return
+
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save image",
+            "",
+            "PNG (*.png);;BMP (*.bmp);;TIFF (*.tiff *.tif);;JPEG (*.jpg *.jpeg);;Все файлы (*)"
+        )
+        if not file_path:
+            return
+
+        try:
+            self.current_pil.save(file_path)
+            QMessageBox.information(self, "OK", f"Image was saved:\n{file_path}")
+        except Exception as e:
+            QMessageBox.critical(self, "ERROR", f"Can't save an image:\n{str(e)}")
+
 
     def on_image_mouse_move(self, event):
         if self.original_np is None:
