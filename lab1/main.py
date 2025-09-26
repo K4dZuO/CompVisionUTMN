@@ -22,8 +22,12 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         self.save_button.clicked.connect(self.save_file)
 
 
-        self.negative_button.clicked.connect(self.apply_negative)
         self.reset_button.clicked.connect(self.reset_image)
+        self.negative_button.clicked.connect(self.apply_negative)
+        self.rotate_90_button.clicked.connect(self.apply_90_rotation)
+        self.reflect_by_v_button.clicked.connect(self.apply_flip_vertical)
+        self.rgb_to_grb_button.clicked.connect(self.apply_from_rgb_to_grb)
+        self.grb_to_rgb_button.clicked.connect(self.apply_from_grb_to_rgb)
 
         #self.brightness_slider.valueChanged.connect(self.apply_transformations)
         #self.contrast_slider.valueChanged.connect(self.apply_transformations)
@@ -277,9 +281,6 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         # После отрисовки превью добавляем статистику
         stats_text = self.update_cursor_stats(window)
         self.coords_label.setText(preview_stats + '\n' + stats_text)
-        
-
-
 
 
     def reset_image(self):
@@ -307,6 +308,63 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         self.update_channel_previews()
         self.update_stats()
         self.update_previews()
+    
+    def apply_90_rotation(self):
+        """Поворот изображения на 90° против часовой стрелки"""
+        if self.current_np is None:
+            return
+        self.current_np = np.rot90(self.current_np, k=1) # меняет (i; j) на (n-i; j)
+        self.current_pil = Image.fromarray(self.current_np)
+
+        self.display_original_image_in_frame()
+        self.update_channel_previews()
+        self.update_stats()
+        self.update_previews()
+        
+    def apply_flip_vertical(self):
+        """Вертикальное отражение """
+        if self.current_np is None:
+            return
+        self.current_np = np.flipud(self.current_np) # меняет (i; j) и (n-i; j) строки
+        self.current_pil = Image.fromarray(self.current_np)
+
+        self.display_original_image_in_frame()
+        self.update_channel_previews()
+        self.update_stats()
+        self.update_previews()
+        
+    def apply_from_rgb_to_grb(self):
+        if self.current_np is None:
+            return
+        img = self.current_np.copy()
+        only_red = img[:,:,0]
+        only_green = img[:,:,1]
+        self.current_np[:,:,1] = only_red
+        self.current_np[:,:,0] = only_green
+        
+        self.current_pil = Image.fromarray(self.current_np)
+        self.display_original_image_in_frame()
+        self.update_channel_previews()
+        self.update_stats()
+        self.update_previews()
+        
+        
+        
+    def apply_from_grb_to_rgb(self):
+        if self.current_np is None:
+            return
+        img = self.current_np.copy()
+        only_red = img[:,:,1]
+        only_green = img[:,:,0]
+        self.current_np[:,:,0] = only_red
+        self.current_np[:,:,1] = only_green
+        
+        self.current_pil = Image.fromarray(self.current_np)
+        self.display_original_image_in_frame()
+        self.update_channel_previews()
+        self.update_stats()
+        self.update_previews()
+
 
     def apply_transformations(self):
         """Применяет яркость/контраст поверх оригинала"""

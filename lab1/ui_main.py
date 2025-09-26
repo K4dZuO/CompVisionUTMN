@@ -131,10 +131,27 @@ class Ui_Imchanger(object):
         self.reset_button = QPushButton(self.centralwidget)
         self.reset_button.setObjectName(u"reset_button")
         self.reset_button.setGeometry(QRect(680, 280, 111, 31))
+        
+        self.rotate_90_button = QPushButton(self.centralwidget)
+        self.rotate_90_button.setObjectName(u"rotate_90_button")
+        self.rotate_90_button.setGeometry(QRect(560, 325, 111, 31))
+
+        self.reflect_by_v_button = QPushButton(self.centralwidget)
+        self.reflect_by_v_button.setObjectName(u"reflect_by_v_button")
+        self.reflect_by_v_button.setGeometry(QRect(680, 325, 111, 31))
+        
+        self.rgb_to_grb_button = QPushButton(self.centralwidget)
+        self.rgb_to_grb_button.setObjectName(u"rgb_to_grb_button")
+        self.rgb_to_grb_button.setGeometry(QRect(560, 360, 111, 31))
+
+        self.grb_to_rgb_button = QPushButton(self.centralwidget)
+        self.grb_to_rgb_button.setObjectName(u"grb_to_rgb_button")
+        self.grb_to_rgb_button.setGeometry(QRect(680, 360, 111, 31))
+        
 
         self.brightness_slider = QSlider(self.centralwidget)
         self.brightness_slider.setObjectName(u"brightness_slider")
-        self.brightness_slider.setGeometry(QRect(560, 330, 231, 22))
+        self.brightness_slider.setGeometry(QRect(560, 430, 231, 22))
         self.brightness_slider.setOrientation(Qt.Horizontal)
         self.brightness_slider.setMinimum(-100)
         self.brightness_slider.setMaximum(100)
@@ -142,12 +159,12 @@ class Ui_Imchanger(object):
 
         self.brightness_label = QLabel(self.centralwidget)
         self.brightness_label.setObjectName(u"brightness_label")
-        self.brightness_label.setGeometry(QRect(800, 325, 81, 31))
+        self.brightness_label.setGeometry(QRect(800, 425, 81, 31))
         self.brightness_label.setAlignment(Qt.AlignLeft|Qt.AlignVCenter)
 
         self.contrast_slider = QSlider(self.centralwidget)
         self.contrast_slider.setObjectName(u"contrast_slider")
-        self.contrast_slider.setGeometry(QRect(560, 370, 231, 22))
+        self.contrast_slider.setGeometry(QRect(560, 470, 231, 22))
         self.contrast_slider.setOrientation(Qt.Horizontal)
         self.contrast_slider.setMinimum(1)
         self.contrast_slider.setMaximum(30)
@@ -155,7 +172,7 @@ class Ui_Imchanger(object):
 
         self.contrast_label = QLabel(self.centralwidget)
         self.contrast_label.setObjectName(u"contrast_label")
-        self.contrast_label.setGeometry(QRect(800, 365, 81, 31))
+        self.contrast_label.setGeometry(QRect(800, 465, 81, 31))
         self.contrast_label.setAlignment(Qt.AlignLeft|Qt.AlignVCenter)
         
         self.stats_area = QScrollArea(self.centralwidget)
@@ -191,8 +208,12 @@ class Ui_Imchanger(object):
         self.blue_text.setText(QCoreApplication.translate("Imchanger", u"Only blue preview", None))
         self.green_text.setText(QCoreApplication.translate("Imchanger", u"Only green preview", None))
         self.coords_label.setText(QCoreApplication.translate("Imchanger", u"Coords", None))
-        self.negative_button.setText(QCoreApplication.translate("Imchanger", u"Negative", None))
         self.reset_button.setText(QCoreApplication.translate("Imchanger", u"Reset", None))
+        self.negative_button.setText(QCoreApplication.translate("Imchanger", u"Negative", None))
+        self.rotate_90_button.setText(QCoreApplication.translate("Imchanger", u"↺", None))
+        self.rgb_to_grb_button.setText(QCoreApplication.translate("Imchanger", u"RGB -> GRB", None))
+        self.grb_to_rgb_button.setText(QCoreApplication.translate("Imchanger", u"GRB -> RGB", None))
+        self.reflect_by_v_button.setText(QCoreApplication.translate("Imchanger", u"Reflect V", None))
         self.brightness_label.setText(QCoreApplication.translate("Imchanger", u"Brightness", None))
         self.contrast_label.setText(QCoreApplication.translate("Imchanger", u"Contrast", None))
         self.stats_label.setText(QCoreApplication.translate("Imchanger", u"Stats", None))
