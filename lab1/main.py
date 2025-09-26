@@ -175,10 +175,13 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         cy = int(py * img_h / lbl_h)
         cx = max(0, min(img_w - 1, cx))
         cy = max(0, min(img_h - 1, cy))
-        self.coords_label.setText(f"Coords: ({int(px)}, {int(py)})")
-        self.update_cursor_window(cx, cy)
+        r, g, b = self.original_np[cy, cx]
+        intensity = (r + g + b) / 3
+        preview_stats = f"Coords: ({cx}, {cy}), \n RGB=({r},{g},{b}), I={intensity:.1f}"
+        #self.coords_label.setText(f"Coords: ({int(px)}, {int(py)})")
+        self.update_cursor_window(cx, cy, preview_stats)
 
-    def update_cursor_window(self, cx, cy):
+    def update_cursor_window(self, cx, cy, preview_stats):
         if self.original_np is None:
             return
         img = self.current_np if self.current_np is not None else self.original_np
@@ -247,6 +250,10 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         painter.end()
 
         self.image_label.setPixmap(main_pixmap)
+        # После отрисовки превью добавляем статистику
+        stats_text = self.update_cursor_stats(window)
+        self.coords_label.setText(preview_stats + '\n' + stats_text)
+        
 
 
 
@@ -314,7 +321,7 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         max_v = img.max(axis=(0, 1))
 
         text = (f"Статистика (RGB):\n"
-                f"Среднее: {mean[0]:.1f}, {mean[1]:.1f}, {mean[2]:.1f}\n"
+                f"Avg: {mean[0]:.1f}, {mean[1]:.1f}, {mean[2]:.1f}\n"
                 f"Std: {std[0]:.1f}, {std[1]:.1f}, {std[2]:.1f}\n"
                 f"Min: {min_v[0]}, {min_v[1]}, {min_v[2]}\n"
                 f"Max: {max_v[0]}, {max_v[1]}, {max_v[2]}")
@@ -370,8 +377,24 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         # гистограммы
         self.update_channel_previews()
 
-
-
+    def update_cursor_stats(self, window):
+        """Считает статистику для превью 13×13"""
+        if window is None or window.size == 0:
+            return "Нет данных"
+        
+        # Для RGB каналов
+        stats_text = ""
+        
+        # По каналам R, G, B
+        for i, color in enumerate(['R', 'G', 'B']):
+            channel = window[:, :, i]
+            stats_text += (f"{color}: avg {channel.mean():.1f} "
+                          f"std: {channel.std():.1f} "
+                          f"min {channel.min()} max {channel.max()}\n")
+    
+    
+        return stats_text
+    
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
