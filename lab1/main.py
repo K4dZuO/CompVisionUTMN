@@ -15,7 +15,7 @@ class MainWindow(QMainWindow, Ui_Imchanger):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
-        self.setWindowTitle("ImChanger — Обработка изображений")
+        self.setWindowTitle("ImChanger")
 
         self.frames_setup()
         self.load_button.clicked.connect(self.load_file)
@@ -111,7 +111,9 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         if self.original_pil is None:
             return
         pixmap = self.pil_to_qpixmap(self.original_pil)
-        self.image_label.setPixmap(pixmap.scaled(self.image_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        self.image_label.setPixmap(pixmap.scaled(self.image_label.size(), 
+                                                 Qt.KeepAspectRatio, # Масштабирование с сохранением пропорций
+                                                 Qt.SmoothTransformation)) # сглаживание по сути
 
 
     # загрузка / сохранение
@@ -262,7 +264,7 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         self.brightness_value = 0
         self.contrast_value = 1.0
         self.brightness_slider.setValue(0)
-        self.contrast_slider.setValue(10)  # 10 = 1.0
+        self.contrast_slider.setValue(1)  # 10 = 1.0
         self.display_original_image_in_frame()
         
         self.update_stats()
@@ -456,6 +458,7 @@ class MainWindow(QMainWindow, Ui_Imchanger):
             channel = window[:, :, i]
             stats_text += (f"{color}: avg {channel.mean():.1f} "
                           f"std: {channel.std():.1f} "
+                          f"var : {channel.var():.1f}"
                           f"min {channel.min()} max {channel.max()}\n")
     
     
