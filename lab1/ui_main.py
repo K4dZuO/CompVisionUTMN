@@ -154,7 +154,7 @@ class Ui_Imchanger(object):
         
         self.brightness_slider = QSlider(self.centralwidget)
         self.brightness_slider.setObjectName(u"brightness_slider")
-        self.brightness_slider.setGeometry(QRect(560, 430, 231, 22))
+        self.brightness_slider.setGeometry(QRect(550, 430, 231, 22))
         self.brightness_slider.setOrientation(Qt.Horizontal)
         self.brightness_slider.setMinimum(-255)
         self.brightness_slider.setMaximum(255)
@@ -167,7 +167,7 @@ class Ui_Imchanger(object):
 
         self.contrast_slider = QSlider(self.centralwidget)
         self.contrast_slider.setObjectName(u"contrast_slider")
-        self.contrast_slider.setGeometry(QRect(560, 470, 231, 22))
+        self.contrast_slider.setGeometry(QRect(550, 470, 231, 22))
         self.contrast_slider.setOrientation(Qt.Horizontal)
         self.contrast_slider.setMinimum(0.1)
         self.contrast_slider.setMaximum(100)

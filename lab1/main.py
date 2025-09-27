@@ -262,9 +262,9 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         self.current_pil = self.original_pil.copy()
         self.current_np = self.original_np.copy()
         self.brightness_value = 0
-        self.contrast_value = 1.0
+        self.contrast_value = 10.0
         self.brightness_slider.setValue(0)
-        self.contrast_slider.setValue(1)  # 10 = 1.0
+        self.contrast_slider.setValue(10)  # 10 = 1.0
         self.display_original_image_in_frame()
         
         self.update_stats()
@@ -349,7 +349,8 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         img = self.original_np.astype(np.float32)
 
         # контраст
-        img = (img - 127.5) * self.contrast_value + 127.5
+        img = 255 / (1 + np.exp(self.contrast_value * (0.5 - img / 255.0)))
+        
         # яркость
         img += self.brightness_value
 
