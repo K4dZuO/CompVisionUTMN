@@ -60,6 +60,7 @@ class MainWindow(QMainWindow, Ui_Imchanger):
             pil = pil.convert("RGB")
         qim = ImageQt(pil)  # PIL -> QImage
         return QPixmap.fromImage(qim)
+        return pil.toPi
 
     def frames_setup(self):
         self.image_label = QLabel(self.img_frame)
@@ -110,40 +111,7 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         if self.original_pil is None:
             return
         pixmap = self.pil_to_qpixmap(self.original_pil)
-        # если хочешь, чтобы основное изображение сохраняло соотношение сторон,
-        # ставь setScaledContents(False) и масштабируй сам. Сейчас QLabel растягивает.
         self.image_label.setPixmap(pixmap.scaled(self.image_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
-
-    def update_channel_previews(self):
-        if self.original_np is None:
-            return
-        # используем текущий результат, если есть
-        img = self.current_np if self.current_np is not None else self.original_np
-
-        gray_array = np.dot(img[..., :3], [0.299, 0.587, 0.114]).astype(np.uint8)
-        gray_pil = Image.fromarray(gray_array)
-        self.gray_label.setPixmap(self.pil_to_qpixmap(gray_pil).scaled(self.gray_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
-        gray_hist = get_histogram(gray_array)
-        gray_hist_image = draw_histogram_image(gray_hist, color='gray')
-        self.gray_hist_label.setPixmap(self.pil_to_qpixmap(gray_hist_image).scaled(self.gray_hist_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
-
-        red_only = np.zeros_like(img); red_only[:, :, 0] = img[:, :, 0]
-        red_pil = Image.fromarray(red_only)
-        self.red_label.setPixmap(self.pil_to_qpixmap(red_pil).scaled(self.red_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
-        red_hist = get_histogram(img[:, :, 0]); red_hist_image = draw_histogram_image(red_hist, color='red')
-        self.red_hist_label.setPixmap(self.pil_to_qpixmap(red_hist_image).scaled(self.red_hist_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
-
-        green_only = np.zeros_like(img); green_only[:, :, 1] = img[:, :, 1]
-        green_pil = Image.fromarray(green_only)
-        self.green_label.setPixmap(self.pil_to_qpixmap(green_pil).scaled(self.green_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
-        green_hist = get_histogram(img[:, :, 1]); green_hist_image = draw_histogram_image(green_hist, color='green')
-        self.green_hist_label.setPixmap(self.pil_to_qpixmap(green_hist_image).scaled(self.green_hist_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
-
-        blue_only = np.zeros_like(img); blue_only[:, :, 2] = img[:, :, 2]
-        blue_pil = Image.fromarray(blue_only)
-        self.blue_label.setPixmap(self.pil_to_qpixmap(blue_pil).scaled(self.blue_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
-        blue_hist = get_histogram(img[:, :, 2]); blue_hist_image = draw_histogram_image(blue_hist, color='blue')
-        self.blue_hist_label.setPixmap(self.pil_to_qpixmap(blue_hist_image).scaled(self.blue_hist_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
 
 
     # загрузка / сохранение
@@ -163,7 +131,8 @@ class MainWindow(QMainWindow, Ui_Imchanger):
 
             self.filename_label.setText(os.path.basename(file_path))
             self.display_original_image_in_frame()
-            self.update_channel_previews()
+            self.update_previews()
+            
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Не удалось загрузить изображение:\n{str(e)}")
 
@@ -295,7 +264,7 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         self.brightness_slider.setValue(0)
         self.contrast_slider.setValue(10)  # 10 = 1.0
         self.display_original_image_in_frame()
-        self.update_channel_previews()
+        
         self.update_stats()
         self.update_previews()
         
@@ -306,7 +275,7 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         self.current_np = 255 - self.current_np
         self.current_pil = Image.fromarray(self.current_np)
         self.display_original_image_in_frame()
-        self.update_channel_previews()
+        
         self.update_stats()
         self.update_previews()
     
@@ -318,7 +287,7 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         self.current_pil = Image.fromarray(self.current_np)
 
         self.display_original_image_in_frame()
-        self.update_channel_previews()
+        
         self.update_stats()
         self.update_previews()
         
@@ -330,7 +299,7 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         self.current_pil = Image.fromarray(self.current_np)
 
         self.display_original_image_in_frame()
-        self.update_channel_previews()
+        
         self.update_stats()
         self.update_previews()
         
@@ -345,7 +314,7 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         
         self.current_pil = Image.fromarray(self.current_np)
         self.display_original_image_in_frame()
-        self.update_channel_previews()
+        
         self.update_stats()
         self.update_previews()
         
@@ -362,7 +331,7 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         
         self.current_pil = Image.fromarray(self.current_np)
         self.display_original_image_in_frame()
-        self.update_channel_previews()
+        
         self.update_stats()
         self.update_previews()
 
@@ -387,7 +356,7 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         self.current_pil = Image.fromarray(img)
 
         self.display_original_image_in_frame()
-        self.update_channel_previews()
+        
         self.update_stats()
         self.update_previews()
 
@@ -435,6 +404,10 @@ class MainWindow(QMainWindow, Ui_Imchanger):
                 self.gray_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
             )
         )
+        gray_hist = get_histogram(gray)
+        gray_hist_image = draw_histogram_image(gray_hist, color='gray')
+        self.gray_hist_label.setPixmap(self.pil_to_qpixmap(gray_hist_image).scaled(self.gray_hist_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+
 
         # отдельные каналы
         red_only = np.zeros_like(self.current_np); red_only[:, :, 0] = self.current_np[:, :, 0]
@@ -446,19 +419,29 @@ class MainWindow(QMainWindow, Ui_Imchanger):
                 self.red_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
             )
         )
+        red_hist = get_histogram(red_only[..., 0])
+        red_hist_image = draw_histogram_image(red_hist, color='red')
+        self.red_hist_label.setPixmap(self.pil_to_qpixmap(red_hist_image).scaled(self.red_hist_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+
         self.green_label.setPixmap(
             self.pil_to_qpixmap(Image.fromarray(green_only)).scaled(
                 self.green_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
             )
         )
+        green_hist = get_histogram(self.current_np[..., 1])
+        green_hist_image = draw_histogram_image(green_hist, color='green')
+        self.green_hist_label.setPixmap(self.pil_to_qpixmap(green_hist_image).scaled(self.green_hist_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+
+        
         self.blue_label.setPixmap(
             self.pil_to_qpixmap(Image.fromarray(blue_only)).scaled(
                 self.blue_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
             )
         )
+        blue_hist = get_histogram(self.current_np[..., 2])
+        blue_hist_image = draw_histogram_image(blue_hist, color='blue')
+        self.blue_hist_label.setPixmap(self.pil_to_qpixmap(blue_hist_image).scaled(self.blue_hist_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
 
-        # гистограммы
-        self.update_channel_previews()
 
     def update_cursor_stats(self, window):
         """Считает статистику для превью 13×13"""
@@ -486,7 +469,7 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         self.current_pil = Image.fromarray(np_img)
 
         self.display_original_image_in_frame()
-        self.update_channel_previews()
+        
         self.update_stats()
         self.update_previews()
 
