@@ -2,11 +2,116 @@
 import sys
 import numpy as np
 from PIL import Image, ImageQt
-from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QLabel, QVBoxLayout, QWidget, QCheckBox, QButtonGroup, QRadioButton, QFrame
+from PySide6.QtWidgets import (QApplication, QMainWindow, QFileDialog, QLabel, 
+                              QVBoxLayout, QWidget, QCheckBox, QButtonGroup, 
+                              QRadioButton, QFrame, QSlider, QSpinBox, QDoubleSpinBox)
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt
+from scipy import ndimage
 
 from ui_main import Ui_Imchanger 
+
+# ========== HELPERS ФУНКЦИИ ==========
+
+def logarithmic_transform(image: np.ndarray) -> np.ndarray:
+    """Логарифмическое преобразование изображения."""
+    image_float = image.astype(np.float64) + 1
+    c = 255 / np.log(1 + np.max(image_float))
+    transformed = c * np.log(image_float)
+    return np.clip(transformed, 0, 255).astype(np.uint8)
+
+def power_transform(image: np.ndarray, gamma: float) -> np.ndarray:
+    """Степенное преобразование изображения с произвольным значением гаммы."""
+    image_float = image.astype(np.float64) / 255.0
+    c = 1.0
+    transformed = c * (image_float ** gamma)
+    return np.clip(transformed * 255, 0, 255).astype(np.uint8)
+
+def binary_transform(image: np.ndarray, threshold: int) -> np.ndarray:
+    """Бинарное преобразование с произвольным пороговым значением."""
+    binary = np.zeros_like(image)
+    binary[image >= threshold] = 255
+    return binary
+
+def brightness_range_cutout(image: np.ndarray, min_val: int, max_val: int, constant_value: int = None) -> np.ndarray:
+    """Вырезание произвольного диапазона яркостей."""
+    mask = (image >= min_val) & (image <= max_val)
+    
+    if constant_value is not None:
+        result = np.full_like(image, constant_value)
+        result[mask] = image[mask]
+    else:
+        result = image.copy()
+        result[~mask] = 0
+    
+    return result
+
+def rectangular_filter(image: np.ndarray, kernel_size: int = 3) -> np.ndarray:
+    """Прямоугольный фильтр (усредняющий фильтр)."""
+    kernel = np.ones((kernel_size, kernel_size)) / (kernel_size * kernel_size)
+    return ndimage.convolve(image.astype(np.float64), kernel).astype(np.uint8)
+
+def median_filter(image: np.ndarray, kernel_size: int = 3) -> np.ndarray:
+    """Медианный фильтр."""
+    return ndimage.median_filter(image, size=kernel_size)
+
+def gaussian_kernel(size: int, sigma: float) -> np.ndarray:
+    """Создание гауссова ядра."""
+    ax = np.linspace(-(size - 1) / 2., (size - 1) / 2., size)
+    xx, yy = np.meshgrid(ax, ax)
+    kernel = np.exp(-0.5 * (xx**2 + yy**2) / sigma**2)
+    return kernel / np.sum(kernel)
+
+def gaussian_filter(image: np.ndarray, sigma: float) -> np.ndarray:
+    """Фильтр Гаусса с размером ядра, определенным правилом 3σ."""
+    kernel_size = int(2 * np.ceil(3 * sigma) + 1)
+    kernel = gaussian_kernel(kernel_size, sigma)
+    return ndimage.convolve(image.astype(np.float64), kernel).astype(np.uint8)
+
+def sigma_filter(image: np.ndarray, sigma: float, window_size: int = 5) -> np.ndarray:
+    """Сигма-фильтр."""
+    pad = window_size // 2
+    image_padded = np.pad(image, pad, mode='reflect')
+    result = np.zeros_like(image, dtype=np.float64)
+    
+    for i in range(image.shape[0]):
+        for j in range(image.shape[1]):
+            window = image_padded[i:i+window_size, j:j+window_size]
+            center_val = image[i, j]
+            mask = np.abs(window - center_val) <= sigma
+            if np.any(mask):
+                result[i, j] = np.mean(window[mask])
+            else:
+                result[i, j] = center_val
+    
+    return np.clip(result, 0, 255).astype(np.uint8)
+
+def absolute_difference_map(image1: np.ndarray, image2: np.ndarray) -> np.ndarray:
+    """Карта абсолютной разности между двумя изображениями."""
+    diff = np.abs(image1.astype(np.float64) - image2.astype(np.float64))
+    return np.clip(diff, 0, 255).astype(np.uint8)
+
+def unsharp_masking(image: np.ndarray, k: int, lambda_val: float) -> np.ndarray:
+    """Нерезкое маскирование для повышения резкости изображения."""
+    blurred = gaussian_filter(image, sigma=k/3)
+    mask = image.astype(np.float64) - blurred.astype(np.float64)
+    sharpened = image.astype(np.float64) + lambda_val * mask
+    return np.clip(sharpened, 0, 255).astype(np.uint8)
+
+def add_gaussian_noise(image: np.ndarray, mean: float = 0, sigma: float = 25) -> np.ndarray:
+    """Добавление гауссова шума к изображению."""
+    noise = np.random.normal(mean, sigma, image.shape)
+    noisy_image = image.astype(np.float64) + noise
+    return np.clip(noisy_image, 0, 255).astype(np.uint8)
+
+def add_salt_pepper_noise(image: np.ndarray, salt_prob: float = 0.01, pepper_prob: float = 0.01) -> np.ndarray:
+    """Добавление солевого-перечного шума к изображению."""
+    noisy_image = image.copy()
+    salt_mask = np.random.random(image.shape) < salt_prob
+    noisy_image[salt_mask] = 255
+    pepper_mask = np.random.random(image.shape) < pepper_prob
+    noisy_image[pepper_mask] = 0
+    return noisy_image
 
 
 class ImchangerApp(QMainWindow):
@@ -16,17 +121,27 @@ class ImchangerApp(QMainWindow):
         self.ui.setupUi(self)
 
         self.frames_setup()
+        self.setup_connections()
         
         self.original_image = None
-        self.chroma_image = None
-        self.smooth_image = None
-        self.clarity_image = None
+        self.original_array = None
+        self.chroma_array = None
+        self.smooth_array = None
+        self.noised_array = None
+        self.clarity_array = None
 
-        self.ui.load_button.clicked.connect(self.load_image)
-        
+        # Параметры по умолчанию
+        self.gamma_value = 1.0
+        self.binary_threshold = 128
+        self.brightness_min = 0
+        self.brightness_max = 255
+        self.constant_value = 0
+        self.sigma_value = 1.0
+        self.k_value = 3
+        self.lambda_value = 1.0
 
     def frames_setup(self):
-        # главная страница
+        # Главная страница
         self.origin_img_label = QLabel(self.ui.origin_img_frame)
         self.origin_img_label.resize(self.ui.origin_img_frame.size())
         self.origin_img_label.setScaledContents(True)
@@ -47,55 +162,328 @@ class ImchangerApp(QMainWindow):
         self.clarity_img_label.setScaledContents(True)
         self.clarity_img_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
-        # страница цветности
+        # Страница цветности
         self.chroma_label = QLabel(self.ui.chroma_frame)
         self.chroma_label.resize(self.ui.chroma_frame.size())
         self.chroma_label.setScaledContents(True)
         self.chroma_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    
+
+        # Страница сглаживания
+        self.smooth_label = QLabel(self.ui.smooth_frame)
+        self.smooth_label.resize(self.ui.smooth_frame.size())
+        self.smooth_label.setScaledContents(True)
+        self.smooth_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Страница резкости
+        self.clarity_label = QLabel(self.ui.clarity_frame)
+        self.clarity_label.resize(self.ui.clarity_frame.size())
+        self.clarity_label.setScaledContents(True)
+        self.clarity_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+    def setup_connections(self):
+        """Настройка соединений для всех кнопок и слайдеров"""
+        self.ui.load_button.clicked.connect(self.load_image)
+        self.ui.reset_button.clicked.connect(self.reset_all_changes)
+        
+        # Цветность
+        self.ui.log_button.clicked.connect(self.apply_logarithmic)
+        self.ui.power_button.clicked.connect(self.apply_power_transform)
+        self.ui.binary_button.clicked.connect(self.apply_binary_transform)
+        self.ui.range_button.clicked.connect(self.apply_brightness_range)
+        
+        # Слайдеры и спинбоксы для цветности
+        self.ui.gamma_slider.valueChanged.connect(self.gamma_slider_changed)
+        self.ui.gamma_spin.valueChanged.connect(self.gamma_spin_changed)
+        self.ui.threshold_slider.valueChanged.connect(self.threshold_slider_changed)
+        self.ui.threshold_spin.valueChanged.connect(self.threshold_spin_changed)
+        self.ui.min_brightness_slider.valueChanged.connect(self.min_brightness_changed)
+        self.ui.min_brightness_spin.valueChanged.connect(self.min_brightness_changed)
+        self.ui.max_brightness_slider.valueChanged.connect(self.max_brightness_changed)
+        self.ui.max_brightness_spin.valueChanged.connect(self.max_brightness_changed)
+        self.ui.constant_value_slider.valueChanged.connect(self.constant_value_changed)
+        self.ui.constant_value_spin.valueChanged.connect(self.constant_value_changed)
+        
+        # Сглаживание
+        self.ui.add_noise_button.clicked.connect(self.add_noise)
+        self.ui.rectangular_button.clicked.connect(self.apply_rectangular_filter)
+        self.ui.median_button.clicked.connect(self.apply_median_filter)
+        self.ui.gaussian_button.clicked.connect(self.apply_gaussian_filter)
+        self.ui.sigma_button.clicked.connect(self.apply_sigma_filter)
+        self.ui.difference_button.clicked.connect(self.show_difference_map)
+        
+        # Слайдеры для сглаживания
+        self.ui.sigma_slider.valueChanged.connect(self.sigma_slider_changed)
+        self.ui.sigma_spin.valueChanged.connect(self.sigma_spin_changed)
+        
+        # Резкость
+        self.ui.unsharp_button.clicked.connect(self.apply_unsharp_masking)
+        
+        # Слайдеры для резкости
+        self.ui.k_slider.valueChanged.connect(self.k_slider_changed)
+        self.ui.k_spin.valueChanged.connect(self.k_spin_changed)
+        self.ui.lambda_slider.valueChanged.connect(self.lambda_slider_changed)
+        self.ui.lambda_spin.valueChanged.connect(self.lambda_spin_changed)
 
     def load_image(self):
         """Загружает изображение и отображает его."""
         file_path, _ = QFileDialog.getOpenFileName(self, "Открыть изображение", "", "Изображения (*.png *.jpg *.jpeg *.bmp)")
         if file_path:
             try:
-                # 1. Загружаем изображение с помощью Pillow
-                self.original_image = Image.open(file_path)#.convert("L") # Конвертируем в градации серого
-                self.chroma_image = self.original_image.copy()
-                self.smooth_image = self.original_image.copy()
-                self.clarity_image = self.original_image.copy()
-
-                # 2. Отображаем оригинальное изображение на главной вкладке
+                self.original_image = Image.open(file_path)#.convert("L")  # Конвертируем в градации серого
+                self.original_array = np.array(self.original_image)
+                self.chroma_array = self.original_array.copy()
+                self.smooth_array = self.original_array.copy()
+                self.clarity_array = self.original_array.copy()
+                
+                self.update_chroma_display()
+                self.update_smooth_display()
+                self.update_clarity_display()
                 self.display_original_image_in_frame()
-                # self.display_image_on_frame(self.original_image, self.ui.origin_img_frame)
-                self.display_image_on_frame(self.original_image, self.ui.chroma_img_frame)
-                # self.display_image_on_frame(self.original_image, self.ui.origin_img_frame)
-                # self.display_image_on_frame(self.original_image, self.ui.origin_img_frame)
 
             except Exception as e:
                 print(f"Ошибка загрузки изображения: {e}")
+
+    def reset_all_changes(self):
+        """Сбрасывает все изменения и возвращает исходное изображение"""
+        if self.original_array is not None:
+            # Сбрасываем все массивы к оригиналу
+            self.chroma_array = self.original_array.copy()
+            self.smooth_array = self.original_array.copy()
+            self.clarity_array = self.original_array.copy()
+            self.noised_array = None
+            
+            # Сбрасываем параметры к значениям по умолчанию
+            self.reset_parameters_to_default()
+            
+            # Обновляем все отображения
+            self.update_all_displays()
+            
+            print("Все изменения сброшены!")
+
+    def reset_parameters_to_default(self):
+        """Сбрасывает все параметры к значениям по умолчанию"""
+        # Сбрасываем значения переменных
+        self.gamma_value = 1.0
+        self.binary_threshold = 128
+        self.brightness_min = 0
+        self.brightness_max = 255
+        self.constant_value = 0
+        self.sigma_value = 1.0
+        self.k_value = 3
+        self.lambda_value = 1.0
+        
+        # Сбрасываем UI элементы
+        self.ui.gamma_slider.setValue(10)  # 10 / 10 = 1.0
+        self.ui.gamma_spin.setValue(1.0)
+        
+        self.ui.threshold_slider.setValue(128)
+        self.ui.threshold_spin.setValue(128)
+        
+        self.ui.min_brightness_slider.setValue(0)
+        self.ui.min_brightness_spin.setValue(0)
+        
+        self.ui.max_brightness_slider.setValue(255)
+        self.ui.max_brightness_spin.setValue(255)
+        
+        self.ui.constant_value_slider.setValue(0)
+        self.ui.constant_value_spin.setValue(0)
+        
+        self.ui.sigma_slider.setValue(10)  # 10 / 10 = 1.0
+        self.ui.sigma_spin.setValue(1.0)
+        
+        self.ui.k_slider.setValue(3)
+        self.ui.k_spin.setValue(3)
+        
+        self.ui.lambda_slider.setValue(10)  # 10 / 10 = 1.0
+        self.ui.lambda_spin.setValue(1.0)
+        
+        # Сбрасываем радио-кнопки
+        self.ui.constant_radio.setChecked(True)
+        self.ui.kernel3_radio.setChecked(True)
+
+    def update_all_displays(self):
+        """Обновляет все отображения изображений"""
+        self.update_chroma_display()
+        self.update_smooth_display()
+        self.update_clarity_display()
+        self.display_original_image_in_frame()
 
     def display_original_image_in_frame(self):
         if self.original_image is None:
             return
         pixmap = self.original_image.toqpixmap()
         self.origin_img_label.setPixmap(pixmap.scaled(self.origin_img_label.size(), 
-                                                 Qt.KeepAspectRatio, # Масштабирование с сохранением пропорций
-                                                 Qt.SmoothTransformation)) # сглаживание по сути
+                                                 Qt.KeepAspectRatio,
+                                                 Qt.SmoothTransformation))
 
-    def display_image_on_frame(self, pil_image: Image.Image, frame: QFrame):
-        """Отображает изображение PIL на заданном QFrame."""
-        # Если pil_image пустое, просто очищаем
-        if pil_image is None:
-            return
+    def array_to_pixmap(self, array):
+        """Конвертирует numpy array в QPixmap"""
+        image = Image.fromarray(array)
+        return ImageQt.toqpixmap(image)
 
-        pixmap = pil_image.toqpixmap()
+    # ========== ЦВЕТНОСТЬ ==========
+    
+    def update_chroma_display(self):
+        """Обновляет отображение на вкладке цветности"""
+        if self.chroma_array is not None:
+            pixmap = self.array_to_pixmap(self.chroma_array)
+            self.chroma_label.setPixmap(pixmap.scaled(self.chroma_label.size(), 
+                                                     Qt.KeepAspectRatio, 
+                                                     Qt.SmoothTransformation))
+            # Также обновляем миниатюру на главной странице
+            self.chroma_img_label.setPixmap(pixmap.scaled(self.chroma_img_label.size(),
+                                                         Qt.KeepAspectRatio,
+                                                         Qt.SmoothTransformation))
 
-        # Создаем QLabel и устанавливаем ему QPixmap
-        label = QLabel(frame)
-        label.setPixmap(pixmap.scaled(frame.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
-        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        label.setGeometry(0, 0, frame.width(), frame.height())
+    def apply_logarithmic(self):
+        if self.original_array is not None:
+            self.chroma_array = logarithmic_transform(self.original_array)
+            self.update_chroma_display()
+
+    def apply_power_transform(self):
+        if self.original_array is not None:
+            self.chroma_array = power_transform(self.original_array, self.gamma_value)
+            self.update_chroma_display()
+
+    def apply_binary_transform(self):
+        if self.original_array is not None:
+            self.chroma_array = binary_transform(self.original_array, self.binary_threshold)
+            self.update_chroma_display()
+
+    def apply_brightness_range(self):
+        if self.original_array is not None:
+            use_constant = self.ui.constant_radio.isChecked()
+            constant_val = self.constant_value if use_constant else None
+            self.chroma_array = brightness_range_cutout(self.original_array, 
+                                                       self.brightness_min, 
+                                                       self.brightness_max, 
+                                                       constant_val)
+            self.update_chroma_display()
+
+    # Обработчики слайдеров для цветности
+    def gamma_slider_changed(self, value):
+        self.gamma_value = value / 10.0
+        self.ui.gamma_spin.setValue(self.gamma_value)
+
+    def gamma_spin_changed(self, value):
+        self.gamma_value = value
+        self.ui.gamma_slider.setValue(int(value * 10))
+
+    def threshold_slider_changed(self, value):
+        self.binary_threshold = value
+        self.ui.threshold_spin.setValue(value)
+
+    def threshold_spin_changed(self, value):
+        self.binary_threshold = value
+        self.ui.threshold_slider.setValue(value)
+
+    def min_brightness_changed(self, value):
+        self.brightness_min = value
+        self.ui.min_brightness_spin.setValue(value)
+
+    def max_brightness_changed(self, value):
+        self.brightness_max = value
+        self.ui.max_brightness_spin.setValue(value)
+
+    def constant_value_changed(self, value):
+        self.constant_value = value
+        self.ui.constant_value_spin.setValue(value)
+
+    # ========== СГЛАЖИВАНИЕ ==========
+    
+    def update_smooth_display(self):
+        """Обновляет отображение на вкладке сглаживания"""
+        if self.smooth_array is not None:
+            pixmap = self.array_to_pixmap(self.smooth_array)
+            self.smooth_label.setPixmap(pixmap.scaled(self.smooth_label.size(), 
+                                                     Qt.KeepAspectRatio, 
+                                                     Qt.SmoothTransformation))
+            # Обновляем миниатюру на главной странице
+            self.smooth_img_label.setPixmap(pixmap.scaled(self.smooth_img_label.size(),
+                                                         Qt.KeepAspectRatio,
+                                                         Qt.SmoothTransformation))
+
+    def add_noise(self):
+        if self.original_array is not None:
+            # Добавляем смешанный шум для демонстрации
+            noisy = add_gaussian_noise(self.original_array, sigma=20)
+            self.noised_array = add_salt_pepper_noise(noisy, 0.02, 0.02)
+            self.smooth_array = self.noised_array.copy()
+            self.update_smooth_display()
+
+    def apply_rectangular_filter(self):
+        if self.noised_array is not None:
+            kernel_size = 3 if self.ui.kernel3_radio.isChecked() else 5
+            self.smooth_array = rectangular_filter(self.noised_array, kernel_size)
+            self.update_smooth_display()
+
+    def apply_median_filter(self):
+        if self.noised_array is not None:
+            kernel_size = 3 if self.ui.kernel3_radio.isChecked() else 5
+            self.smooth_array = median_filter(self.noised_array, kernel_size)
+            self.update_smooth_display()
+
+    def apply_gaussian_filter(self):
+        if self.noised_array is not None:
+            self.smooth_array = gaussian_filter(self.noised_array, self.sigma_value)
+            self.update_smooth_display()
+
+    def apply_sigma_filter(self):
+        if self.noised_array is not None:
+            window_size = 3 if self.ui.kernel3_radio.isChecked() else 5
+            self.smooth_array = sigma_filter(self.noised_array, self.sigma_value, window_size)
+            self.update_smooth_display()
+
+    def show_difference_map(self):
+        if self.noised_array is not None and self.smooth_array is not None:
+            diff_map = absolute_difference_map(self.noised_array, self.smooth_array)
+            pixmap = self.array_to_pixmap(diff_map)
+            self.smooth_label.setPixmap(pixmap.scaled(self.smooth_label.size(), 
+                                                     Qt.KeepAspectRatio, 
+                                                     Qt.SmoothTransformation))
+
+    def sigma_slider_changed(self, value):
+        self.sigma_value = value / 10.0
+        self.ui.sigma_spin.setValue(self.sigma_value)
+
+    def sigma_spin_changed(self, value):
+        self.sigma_value = value
+        self.ui.sigma_slider.setValue(int(value * 10))
+
+    # ========== РЕЗКОСТЬ ==========
+    
+    def update_clarity_display(self):
+        """Обновляет отображение на вкладке резкости"""
+        if self.clarity_array is not None:
+            pixmap = self.array_to_pixmap(self.clarity_array)
+            self.clarity_label.setPixmap(pixmap.scaled(self.clarity_label.size(), 
+                                                     Qt.KeepAspectRatio, 
+                                                     Qt.SmoothTransformation))
+            # Обновляем миниатюру на главной странице
+            self.clarity_img_label.setPixmap(pixmap.scaled(self.clarity_img_label.size(),
+                                                          Qt.KeepAspectRatio,
+                                                          Qt.SmoothTransformation))
+
+    def apply_unsharp_masking(self):
+        if self.original_array is not None:
+            self.clarity_array = unsharp_masking(self.original_array, self.k_value, self.lambda_value)
+            self.update_clarity_display()
+
+    def k_slider_changed(self, value):
+        self.k_value = value
+        self.ui.k_spin.setValue(value)
+
+    def k_spin_changed(self, value):
+        self.k_value = value
+        self.ui.k_slider.setValue(value)
+
+    def lambda_slider_changed(self, value):
+        self.lambda_value = value / 10.0
+        self.ui.lambda_spin.setValue(self.lambda_value)
+
+    def lambda_spin_changed(self, value):
+        self.lambda_value = value
+        self.ui.lambda_slider.setValue(int(value * 10))
 
 
 if __name__ == "__main__":
