@@ -2,6 +2,46 @@ import numpy as np
 from scipy import ndimage
 from typing import Tuple, Optional
 
+def convolve2d(image: np.ndarray, kernel: np.ndarray) -> np.ndarray:
+    """Простая реализация 2D свёртки для серых изображений."""
+    kh, kw = kernel.shape
+    pad_h, pad_w = kh // 2, kw // 2
+    padded = np.pad(image, ((pad_h, pad_h), (pad_w, pad_w)), mode='reflect')
+    result = np.zeros_like(image, dtype=np.float64)
+
+    for i in range(image.shape[0]):
+        for j in range(image.shape[1]):
+            region = padded[i:i+kh, j:j+kw]
+            result[i, j] = np.sum(region * kernel)
+    return result
+    
+def apply_per_channel(image: np.ndarray, func, *args, **kwargs):
+    """Применяет фильтр func к каждому каналу RGB отдельно."""
+    if image.ndim == 2:
+        return func(image, *args, **kwargs)
+    elif image.ndim == 3:
+        # Берем только первые 3 канала, если вдруг ARGB/BGRA
+        image = image[:, :, :3]
+        channels = [func(image[:, :, i], *args, **kwargs) for i in range(image.shape[2])]
+        return np.stack(channels, axis=2)
+    else:
+        raise ValueError(f"Unexpected image shape: {image.shape}")
+
+
+def median_filter(image: np.ndarray, kernel_size: int = 3) -> np.ndarray:
+    """Медианный фильтр без SciPy."""
+    pad = kernel_size // 2
+    def _median(gray):
+        padded = np.pad(gray, pad, mode='reflect')
+        result = np.zeros_like(gray)
+        for i in range(gray.shape[0]):
+            for j in range(gray.shape[1]):
+                region = padded[i:i+kernel_size, j:j+kernel_size]
+                result[i, j] = np.median(region)
+        return result
+    return apply_per_channel(image, _median).astype(np.uint8)
+
+
 def logarithmic_transform(image: np.ndarray) -> np.ndarray:
     """Логарифмическое преобразование изображения."""
     image_float = image.astype(np.float64) + 1
@@ -36,9 +76,22 @@ def brightness_range_cutout(image: np.ndarray, min_val: int, max_val: int, const
     return result
 
 def rectangular_filter(image: np.ndarray, kernel_size: int = 3) -> np.ndarray:
-    """Прямоугольный фильтр (усредняющий фильтр)."""
-    kernel = np.ones((kernel_size, kernel_size)) / (kernel_size * kernel_size)
-    return ndimage.convolve(image.astype(np.float64), kernel).astype(np.uint8)
+    """Прямоугольный усредняющий фильтр без SciPy."""
+    kernel = np.ones((kernel_size, kernel_size)) / (kernel_size ** 2)
+
+    def _apply(gray):
+        kh, kw = kernel.shape
+        pad_h, pad_w = kh // 2, kw // 2
+        padded = np.pad(gray, ((pad_h, pad_h), (pad_w, pad_w)), mode='reflect')
+        result = np.zeros_like(gray, dtype=np.float64)
+        for i in range(gray.shape[0]):
+            for j in range(gray.shape[1]):
+                region = padded[i:i+kh, j:j+kw]
+                result[i, j] = np.sum(region * kernel)
+        return np.clip(result, 0, 255)
+
+    return apply_per_channel(image, _apply).astype(np.uint8)
+
 
 def median_filter(image: np.ndarray, kernel_size: int = 3) -> np.ndarray:
     """Медианный фильтр."""
@@ -52,28 +105,34 @@ def gaussian_kernel(size: int, sigma: float) -> np.ndarray:
     return kernel / np.sum(kernel)
 
 def gaussian_filter(image: np.ndarray, sigma: float) -> np.ndarray:
-    """Фильтр Гаусса с размером ядра, определенным правилом 3σ."""
+    """Гауссов фильтр без SciPy."""
     kernel_size = int(2 * np.ceil(3 * sigma) + 1)
     kernel = gaussian_kernel(kernel_size, sigma)
-    return ndimage.convolve(image.astype(np.float64), kernel).astype(np.uint8)
+    def _apply(gray):
+        return convolve2d(gray.astype(np.float64), kernel)
+    return np.clip(apply_per_channel(image, _apply), 0, 255).astype(np.uint8)
+
 
 def sigma_filter(image: np.ndarray, sigma: float, window_size: int = 5) -> np.ndarray:
-    """Сигма-фильтр."""
+    """Сигма-фильтр (работает и с RGB)."""
     pad = window_size // 2
-    image_padded = np.pad(image, pad, mode='reflect')
-    result = np.zeros_like(image, dtype=np.float64)
-    
-    for i in range(image.shape[0]):
-        for j in range(image.shape[1]):
-            window = image_padded[i:i+window_size, j:j+window_size]
-            center_val = image[i, j]
-            mask = np.abs(window - center_val) <= sigma
-            if np.any(mask):
-                result[i, j] = np.mean(window[mask])
-            else:
-                result[i, j] = center_val
-    
-    return np.clip(result, 0, 255).astype(np.uint8)
+
+    def _apply(gray):
+        padded = np.pad(gray, pad, mode='reflect')
+        result = np.zeros_like(gray, dtype=np.float64)
+        for i in range(gray.shape[0]):
+            for j in range(gray.shape[1]):
+                window = padded[i:i+window_size, j:j+window_size]
+                center_val = gray[i, j]
+                mask = np.abs(window - center_val) <= sigma
+                if np.any(mask):
+                    result[i, j] = np.mean(window[mask])
+                else:
+                    result[i, j] = center_val
+        return np.clip(result, 0, 255)
+
+    return apply_per_channel(image, _apply).astype(np.uint8)
+
 
 def absolute_difference_map(image1: np.ndarray, image2: np.ndarray) -> np.ndarray:
     """Карта абсолютной разности между двумя изображениями."""
