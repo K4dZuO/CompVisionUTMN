@@ -94,8 +94,17 @@ def rectangular_filter(image: np.ndarray, kernel_size: int = 3) -> np.ndarray:
 
 
 def median_filter(image: np.ndarray, kernel_size: int = 3) -> np.ndarray:
-    """Медианный фильтр."""
-    return ndimage.median_filter(image, size=kernel_size)
+    pad = kernel_size // 2
+    # Добавляем отражённые границы, чтобы не терять края изображения
+    padded = np.pad(image, pad, mode='reflect')
+    result = np.zeros_like(image)
+
+    for i in range(image.shape[0]):
+        for j in range(image.shape[1]):
+            window = padded[i:i + kernel_size, j:j + kernel_size]
+            result[i, j] = np.median(window)
+
+    return result.astype(np.uint8)
 
 def gaussian_kernel(size: int, sigma: float) -> np.ndarray:
     """Создание гауссова ядра."""
