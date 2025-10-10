@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QFileDialog, QLabel,
                               QRadioButton, QFrame, QSlider, QSpinBox, QDoubleSpinBox)
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt
-from scipy import ndimage
+# scipy.ndimage удален - используем только собственные реализации
 
 from ui_main import Ui_Imchanger 
 
@@ -269,37 +269,37 @@ class ImchangerApp(QMainWindow):
     def gamma_slider_changed(self, value):
         self.gamma_value = value / 10.0
         self.ui.gamma_spin.setValue(self.gamma_value)
-        self.apply_power_transform()
+        # Убрали автоматическое применение - только при нажатии кнопки
 
     def gamma_spin_changed(self, value):
         self.gamma_value = value
         self.ui.gamma_slider.setValue(int(value * 10))
-        self.apply_power_transform()
+        # Убрали автоматическое применение - только при нажатии кнопки
 
     def threshold_slider_changed(self, value):
         self.binary_threshold = value
         self.ui.threshold_spin.setValue(value)
-        self.apply_binary_transform()
+        # Убрали автоматическое применение - только при нажатии кнопки
 
     def threshold_spin_changed(self, value):
         self.binary_threshold = value
         self.ui.threshold_slider.setValue(value)
-        self.apply_binary_transform()
+        # Убрали автоматическое применение - только при нажатии кнопки
 
     def min_brightness_changed(self, value):
         self.brightness_min = value
         self.ui.min_brightness_spin.setValue(value)
-        self.apply_brightness_range()
+        # Убрали автоматическое применение - только при нажатии кнопки
 
     def max_brightness_changed(self, value):
         self.brightness_max = value
         self.ui.max_brightness_spin.setValue(value)
-        self.apply_brightness_range()
+        # Убрали автоматическое применение - только при нажатии кнопки
 
     def constant_value_changed(self, value):
         self.constant_value = value
         self.ui.constant_value_spin.setValue(value)
-        self.apply_brightness_range()
+        # Убрали автоматическое применение - только при нажатии кнопки
         
 
     # ========== СГЛАЖИВАНИЕ ==========
@@ -358,14 +358,12 @@ class ImchangerApp(QMainWindow):
     def sigma_slider_changed(self, value):
         self.sigma_value = value / 10.0
         self.ui.sigma_spin.setValue(self.sigma_value)
-        if self.noised_array is not None:
-            self.apply_gaussian_filter()
+        # Убрали автоматическое применение - только при нажатии кнопки
 
     def sigma_spin_changed(self, value):
         self.sigma_value = value
         self.ui.sigma_slider.setValue(int(value * 10))
-        if self.noised_array is not None:
-            self.apply_gaussian_filter()
+        # Убрали автоматическое применение - только при нажатии кнопки
 
     # ========== РЕЗКОСТЬ ==========
     
@@ -389,22 +387,22 @@ class ImchangerApp(QMainWindow):
     def k_slider_changed(self, value):
         self.k_value = value
         self.ui.k_spin.setValue(value)
-        self.apply_unsharp_masking()
+        # Убрали автоматическое применение - только при нажатии кнопки
 
     def k_spin_changed(self, value):
         self.k_value = value
         self.ui.k_slider.setValue(value)
-        self.apply_unsharp_masking()
+        # Убрали автоматическое применение - только при нажатии кнопки
 
     def lambda_slider_changed(self, value):
         self.lambda_value = value / 10.0
         self.ui.lambda_spin.setValue(self.lambda_value)
-        self.apply_unsharp_masking()
+        # Убрали автоматическое применение - только при нажатии кнопки
 
     def lambda_spin_changed(self, value):
         self.lambda_value = value
         self.ui.lambda_slider.setValue(int(value * 10))
-        self.apply_unsharp_masking()
+        # Убрали автоматическое применение - только при нажатии кнопки
 
 
 if __name__ == "__main__":
