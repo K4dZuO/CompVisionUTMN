@@ -7,7 +7,6 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QFileDialog, QLabel,
                               QRadioButton, QFrame, QSlider, QSpinBox, QDoubleSpinBox)
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt
-# scipy.ndimage удален - используем только собственные реализации
 
 from ui_main import Ui_Imchanger 
 
@@ -308,43 +307,41 @@ class ImchangerApp(QMainWindow):
             self.update_smooth_display()
 
     def apply_rectangular_filter(self):
-        if self.noised_array is not None:
+        if self.original_array is not None:
             kernel_size = 3 if self.ui.kernel3_radio.isChecked() else 5
-            self.smooth_array = rectangular_filter(self.noised_array, kernel_size)
+            self.smooth_array = rectangular_filter(self.original_array, kernel_size)
             self.update_smooth_display()
 
     def apply_median_filter(self):
-        if self.noised_array is not None:
+        if self.original_array is not None:
             kernel_size = 3 if self.ui.kernel3_radio.isChecked() else 5
-            self.smooth_array = median_filter(self.noised_array, kernel_size)
+            self.smooth_array = median_filter(self.original_array, kernel_size)
             self.update_smooth_display()
 
     def apply_gaussian_filter(self):
-        if self.noised_array is not None:
-            self.smooth_array = gaussian_filter(self.noised_array, self.sigma_value)
+        if self.original_array is not None:
+            self.smooth_array = gaussian_filter(self.original_array, self.sigma_value)
             self.update_smooth_display()
 
     def apply_sigma_filter(self):
-        if self.noised_array is not None:
+        if self.original_array is not None:
             window_size = 3 if self.ui.kernel3_radio.isChecked() else 5
-            self.smooth_array = sigma_filter(self.noised_array, self.sigma_value, window_size)
+            self.smooth_array = sigma_filter(self.original_array, self.sigma_value, window_size)
             self.update_smooth_display()
 
     def show_difference_map(self):
         if self.noised_array is not None and self.smooth_array is not None:
-            diff_map = absolute_difference_map(self.noised_array, self.smooth_array)
+            diff_map = absolute_difference_map(self.original_array, self.smooth_array)
             pixmap = self.array_to_pixmap(diff_map)
             self.smooth_label.setPixmap(pixmap.scaled(self.smooth_label.size()))
 
     def sigma_slider_changed(self, value):
         self.sigma_value = value / 10.0
         self.ui.sigma_spin.setValue(self.sigma_value)
-        # Убрали автоматическое применение - только при нажатии кнопки
 
     def sigma_spin_changed(self, value):
         self.sigma_value = value
         self.ui.sigma_slider.setValue(int(value * 10))
-        # Убрали автоматическое применение - только при нажатии кнопки
 
     # ========== РЕЗКОСТЬ ==========
     
