@@ -133,7 +133,7 @@ class ImchangerApp(QMainWindow):
         file_path, _ = QFileDialog.getOpenFileName(self, "Открыть изображение", "", "Изображения (*.png *.jpg *.jpeg *.bmp)")
         if file_path:
             try:
-                self.original_image = Image.open(file_path).convert("L")  # Конвертируем в градации серого
+                self.original_image = Image.open(file_path)#.convert("L")  # Конвертируем в градации серого
                 self.original_array = np.array(self.original_image)
                 self.chroma_array = self.original_array.copy()
                 self.smooth_array = self.original_array.copy()

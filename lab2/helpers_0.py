@@ -3,27 +3,27 @@ from math import ceil
 from numpy.lib.stride_tricks import sliding_window_view
 
 
-def convolve2d(image: np.ndarray, kernel: np.ndarray) -> np.ndarray:
-    """Оптимизированная свертка 2D с использованием векторизованных операций."""
-    kh, kw = kernel.shape
-    pad_h, pad_w = kh // 2, kw // 2
-    padded = np.pad(image, ((pad_h, pad_h), (pad_w, pad_w)), mode='reflect')
-    windows = sliding_window_view(padded, (kh, kw))
-    # Используем einsum для более эффективного вычисления свертки
-    result = np.einsum('ijkl,kl->ij', windows, kernel)
-    return result
+# def convolve2d(image: np.ndarray, kernel: np.ndarray) -> np.ndarray:
+#     """Оптимизированная свертка 2D с использованием векторизованных операций."""
+#     kh, kw = kernel.shape
+#     pad_h, pad_w = kh // 2, kw // 2
+#     padded = np.pad(image, ((pad_h, pad_h), (pad_w, pad_w)), mode='reflect')
+#     windows = sliding_window_view(padded, (kh, kw))
+#     # Используем einsum для более эффективного вычисления свертки
+#     result = np.einsum('ijkl,kl->ij', windows, kernel)
+#     return result
     
-def apply_per_channel(image: np.ndarray, func, *args, **kwargs):
-    """Применяет фильтр func к каждому каналу RGB отдельно."""
-    if image.ndim == 2:
-        return func(image, *args, **kwargs)
-    elif image.ndim == 3:
-        # Берем только первые 3 канала, если вдруг ARGB/BGRA
-        image = image[:, :, :3]
-        channels = [func(image[:, :, i], *args, **kwargs) for i in range(image.shape[2])]
-        return np.stack(channels, axis=2)
-    else:
-        raise ValueError(f"Unexpected image shape: {image.shape}")
+# def apply_per_channel(image: np.ndarray, func, *args, **kwargs):
+#     """Применяет фильтр func к каждому каналу RGB отдельно."""
+#     if image.ndim == 2:
+#         return func(image, *args, **kwargs)
+#     elif image.ndim == 3:
+#         # Берем только первые 3 канала, если вдруг ARGB/BGRA
+#         image = image[:, :, :3]
+#         channels = [func(image[:, :, i], *args, **kwargs) for i in range(image.shape[2])]
+#         return np.stack(channels, axis=2)
+#     else:
+#         raise ValueError(f"Unexpected image shape: {image.shape}")
 
 def logarithmic_transform(image: np.ndarray) -> np.ndarray:
     """Логарифмическое преобразование изображения - оптимизированная версия."""
@@ -57,37 +57,37 @@ def brightness_range_cutout(image: np.ndarray, min_val: int, max_val: int, const
     return result
 
 def rectangular_filter(image: np.ndarray, kernel_size: int = 3) -> np.ndarray:
-    n, m = image.shape[:2]
+    n, m, channels = image.shape
+    print(image.shape)
+    print(image.ndim)
     pad = kernel_size // 2
-    padded_image = np.pad(image, pad, mode='edge')
+    padded_image = np.pad(image, ((pad, pad), (pad, pad), (0, 0)), mode='edge') # добавляем по краям, но не в каналы
     filter_image = np.zeros_like(image)
-    
-    for i in range(n):
-        for j in range(m):
-            kernel = padded_image[i:i+kernel_size,j:j+kernel_size]
-            filter_image[i, j] = np.average(kernel)
-        if 100*(i/n)%10 == 0:  # Индикатор прогресса
-            print(f"Обработка: {ceil(100 * i / n)}%")
-
+    for c in range(channels):
+        for i in range(n):
+            for j in range(m):
+                kernel = padded_image[i:i+kernel_size,j:j+kernel_size, c]
+                filter_image[i, j, c] = np.average(kernel)
+        print(f"Обработка: {ceil(100 * (c+1) / channels)}%")
+    print(filter_image)
     return np.clip(filter_image, 0, 255).astype(np.uint8)
 
 
 def median_filter(image: np.ndarray, kernel_size: int = 3) -> np.ndarray:
-    n, m = image.shape[:2]
+    n, m, channels = image.shape
+    
     pad = kernel_size // 2
-    padded_image = np.pad(image, pad, mode='edge')
+    padded_image = np.pad(image, ((pad, pad), (pad, pad), (0, 0)), mode='edge') # добавляем по краям, но не в каналы
     filter_image = np.zeros_like(image)
-    for i in range(n):
-        for j in range(m):
-            kernel = padded_image[i:i+kernel_size,j:j+kernel_size]
-            filter_image[i, j] = np.median(kernel)
-        if 100*(i/n)%10 == 0: 
-            print(f"Обработка: {ceil(100 * i / n)}%")
-                
+    for c in range(channels):
+        for i in range(n):
+            for j in range(m):
+                kernel = padded_image[i:i+kernel_size, j:j+kernel_size, c]
+                filter_image[i, j, c] = np.median(kernel)
+        
+        print(f"Обработка: {ceil(100 * (c+1) / channels)}%")
     return np.clip(filter_image, 0, 255).astype(np.uint8)
 
-import numpy as np
-from math import ceil
 
 def gaussian_kernel(size: int, sigma: float) -> np.ndarray:
     """
@@ -112,47 +112,46 @@ def gaussian_filter(image: np.ndarray, sigma: float) -> np.ndarray:
     kernel_size = int(2 * np.ceil(3 * sigma) + 1)  # Правило 3*sigma
     kernel = gaussian_kernel(kernel_size, sigma)
 
-    n, m = image.shape
+    n, m, channels = image.shape
+    
     pad = kernel_size // 2
-    padded_image = np.pad(image, pad, mode='edge')  # Заполняем края по pad с каждой стороны
+    padded_image = np.pad(image, ((pad, pad), (pad, pad), (0, 0)), mode='edge') # добавляем по краям, но не в каналы
     filter_image = np.zeros_like(image, dtype=np.float64)
 
-    for i in range(n):
-        if 100*(i/n)%10 == 0: 
-            print(f"Обработка: {ceil(100 * i / n)}%")
-        for j in range(m):
-            region = padded_image[i:i + kernel_size, j:j + kernel_size]
-            filter_image[i, j] = np.sum(region * kernel)
-
-    return np.clip(filter_image, 0, 255).astype(np.uint8)
+    for c in range(channels):
+        for i in range(n):
+            for j in range(m):
+                region = padded_image[i:i + kernel_size, j:j + kernel_size, c]
+                filter_image[i, j, c] = np.sum(region * kernel) # 
+        print(f"Обработка: {ceil(100 * (c+1) / channels)}%")
+    return filter_image.astype(np.uint8)
 
 def sigma_filter(image: np.ndarray, sigma: float, window_size: int) -> np.ndarray:
     """
     Применяет сигма-фильтр к одноканальному изображению.
     """
-    n, m = image.shape
+    n, m, channels = image.shape
     pad = window_size//2
-    padded_image = np.pad(image, pad, mode='edge')
+    padded_image = np.pad(image, ((pad, pad), (pad, pad), (0, 0)), mode='edge') # добавляем по краям, но не в каналы
     filter_image = np.zeros_like(image, dtype=np.float64)
 
-    for i in range(n):
-        if 100 * i / n % 10 == 0:
-            print(f"Сигма: {ceil(100 * i / n)}%")
-        for j in range(m):
-            center_val = padded_image[i + pad, j + pad]
-            total_val = 0.0
-            total_weight = 0.0 
-            for di in range(-pad, pad + 1):
-                for dj in range(-pad, pad + 1):
-                    neighbor_val = padded_image[i + pad + di, j + pad + dj]
-                    if abs(center_val - neighbor_val) <= sigma:
-                        total_val += neighbor_val
-                        total_weight += 1
-            if total_weight > 0:
-                filter_image[i, j] = total_val / total_weight
-            else:
-                filter_image[i, j] = center_val  # Если нет подходящих пикселей, оставляем как есть
-    print("Done")
+    for c in range(channels):
+        for i in range(n):
+            for j in range(m):
+                center_val = padded_image[i + pad, j + pad, c]
+                total_val = 0.0
+                total_weight = 0.0 
+                for di in range(-pad, pad + 1):
+                    for dj in range(-pad, pad + 1):
+                        neighbor_val = padded_image[i + pad + di, j + pad + dj, c]
+                        if abs(center_val - neighbor_val) <= sigma:
+                            total_val += neighbor_val
+                            total_weight += 1
+                if total_weight > 0:
+                    filter_image[i, j, c] = total_val / total_weight
+                else:
+                    filter_image[i, j, c] = center_val  # Если нет подходящих пикселей, оставляем как есть
+        print(f"Обработка: {ceil(100 * (c+1) / channels)}%")
     return np.clip(filter_image, 0, 255).astype(np.uint8)
 
 
