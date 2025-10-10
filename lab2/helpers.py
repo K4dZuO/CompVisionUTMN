@@ -114,15 +114,15 @@ def logarithmic_transform(image: np.ndarray) -> np.ndarray:
     """Логарифмическое преобразование изображения - оптимизированная версия."""
     # Используем float32 вместо float64 для экономии памяти
     image_float = image.astype(np.float32) + 1
-    c = 255.0 / np.log(1.0 + np.max(image_float))
-    transformed = c * np.log(image_float)
-    return np.clip(transformed, 0, 255).astype(np.uint8)
+    c = 255.0 / np.log(1 + np.max(image_float))
+    transformed = c * np.log(1 + image_float)
+    return np.clip(transformed, 0, 255).astype(np.uint8) # все что x < 0 = 0, x > 255 = 255
 
 def power_transform(image: np.ndarray, gamma: float) -> np.ndarray:
     """Степенное преобразование изображения с произвольным значением гаммы - оптимизированная версия."""
-    # Используем float32 вместо float64 для экономии памяти
-    image_float = image.astype(np.float32) / 255.0
-    transformed = image_float ** gamma
+    image_float = image.astype(np.float32) / 255
+    c = 255 / np.log(1 + np.max(image_float))
+    transformed = (c* image_float**gamma)/255
     return np.clip(transformed * 255, 0, 255).astype(np.uint8)
 
 def binary_transform(image: np.ndarray, threshold: int) -> np.ndarray:

@@ -12,7 +12,7 @@ from PySide6.QtCore import Qt
 from ui_main import Ui_Imchanger 
 
 # Helpers
-from helpers import (
+from helpers_0 import (
     logarithmic_transform, power_transform, binary_transform, brightness_range_cutout,
     rectangular_filter, median_filter, gaussian_filter, sigma_filter,
     absolute_difference_map, unsharp_masking, add_gaussian_noise, add_salt_pepper_noise
@@ -48,9 +48,9 @@ class ImchangerApp(QMainWindow):
     def frames_setup(self):
         # Главная страница
         self.origin_img_label = QLabel(self.ui.origin_img_frame)
-        self.origin_img_label.resize(self.ui.origin_img_frame.size())
-        self.origin_img_label.setScaledContents(True)
-        self.origin_img_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.origin_img_label.resize(self.ui.origin_img_frame.size()) # размер фрейма
+        self.origin_img_label.setScaledContents(True) # растягивание из-ия под под размер фрейма
+        self.origin_img_label.setAlignment(Qt.AlignmentFlag.AlignCenter) # 
 
         self.chroma_img_label = QLabel(self.ui.chroma_img_frame)
         self.chroma_img_label.resize(self.ui.chroma_img_frame.size())
@@ -134,16 +134,16 @@ class ImchangerApp(QMainWindow):
         file_path, _ = QFileDialog.getOpenFileName(self, "Открыть изображение", "", "Изображения (*.png *.jpg *.jpeg *.bmp)")
         if file_path:
             try:
-                self.original_image = Image.open(file_path)#.convert("L")  # Конвертируем в градации серого
+                self.original_image = Image.open(file_path).convert("L")  # Конвертируем в градации серого
                 self.original_array = np.array(self.original_image)
                 self.chroma_array = self.original_array.copy()
                 self.smooth_array = self.original_array.copy()
                 self.clarity_array = self.original_array.copy()
                 
+                self.display_original_image_in_frame()
                 self.update_chroma_display()
                 self.update_smooth_display()
                 self.update_clarity_display()
-                self.display_original_image_in_frame()
 
             except Exception as e:
                 print(f"Ошибка загрузки изображения: {e}")
@@ -217,9 +217,7 @@ class ImchangerApp(QMainWindow):
         if self.original_image is None:
             return
         pixmap = self.original_image.toqpixmap()
-        self.origin_img_label.setPixmap(pixmap.scaled(self.origin_img_label.size(), 
-                                                 Qt.KeepAspectRatio,
-                                                 Qt.SmoothTransformation))
+        self.origin_img_label.setPixmap(pixmap.scaled(self.origin_img_label.size()))
 
     def array_to_pixmap(self, array):
         """Конвертирует numpy array в QPixmap"""
@@ -232,13 +230,9 @@ class ImchangerApp(QMainWindow):
         """Обновляет отображение на вкладке цветности"""
         if self.chroma_array is not None:
             pixmap = self.array_to_pixmap(self.chroma_array)
-            self.chroma_label.setPixmap(pixmap.scaled(self.chroma_label.size(), 
-                                                     Qt.KeepAspectRatio, 
-                                                     Qt.SmoothTransformation))
+            self.chroma_label.setPixmap(pixmap.scaled(self.chroma_label.size()))
             # Также обновляем миниатюру на главной странице
-            self.chroma_img_label.setPixmap(pixmap.scaled(self.chroma_img_label.size(),
-                                                         Qt.KeepAspectRatio,
-                                                         Qt.SmoothTransformation))
+            self.chroma_img_label.setPixmap(pixmap.scaled(self.chroma_img_label.size()))
 
     def apply_logarithmic(self):
         if self.original_array is not None:
@@ -259,47 +253,40 @@ class ImchangerApp(QMainWindow):
         if self.original_array is not None:
             use_constant = self.ui.constant_radio.isChecked()
             constant_val = self.constant_value if use_constant else None
-            self.chroma_array = brightness_range_cutout(self.original_array, 
-                                                       self.brightness_min, 
-                                                       self.brightness_max, 
-                                                       constant_val)
+            self.chroma_array = brightness_range_cutout(image = self.original_array, 
+                                                       min_val=self.brightness_min, 
+                                                       max_val=self.brightness_max, 
+                                                       constant_value=constant_val)
             self.update_chroma_display()
 
     # Обработчики слайдеров для цветности
     def gamma_slider_changed(self, value):
         self.gamma_value = value / 10.0
         self.ui.gamma_spin.setValue(self.gamma_value)
-        # Убрали автоматическое применение - только при нажатии кнопки
 
     def gamma_spin_changed(self, value):
         self.gamma_value = value
         self.ui.gamma_slider.setValue(int(value * 10))
-        # Убрали автоматическое применение - только при нажатии кнопки
 
     def threshold_slider_changed(self, value):
         self.binary_threshold = value
         self.ui.threshold_spin.setValue(value)
-        # Убрали автоматическое применение - только при нажатии кнопки
 
     def threshold_spin_changed(self, value):
         self.binary_threshold = value
         self.ui.threshold_slider.setValue(value)
-        # Убрали автоматическое применение - только при нажатии кнопки
 
     def min_brightness_changed(self, value):
         self.brightness_min = value
         self.ui.min_brightness_spin.setValue(value)
-        # Убрали автоматическое применение - только при нажатии кнопки
 
     def max_brightness_changed(self, value):
         self.brightness_max = value
         self.ui.max_brightness_spin.setValue(value)
-        # Убрали автоматическое применение - только при нажатии кнопки
 
     def constant_value_changed(self, value):
         self.constant_value = value
         self.ui.constant_value_spin.setValue(value)
-        # Убрали автоматическое применение - только при нажатии кнопки
         
 
     # ========== СГЛАЖИВАНИЕ ==========
@@ -308,13 +295,9 @@ class ImchangerApp(QMainWindow):
         """Обновляет отображение на вкладке сглаживания"""
         if self.smooth_array is not None:
             pixmap = self.array_to_pixmap(self.smooth_array)
-            self.smooth_label.setPixmap(pixmap.scaled(self.smooth_label.size(), 
-                                                     Qt.KeepAspectRatio, 
-                                                     Qt.SmoothTransformation))
+            self.smooth_label.setPixmap(pixmap.scaled(self.smooth_label.size()))
             # Обновляем миниатюру на главной странице
-            self.smooth_img_label.setPixmap(pixmap.scaled(self.smooth_img_label.size(),
-                                                         Qt.KeepAspectRatio,
-                                                         Qt.SmoothTransformation))
+            self.smooth_img_label.setPixmap(pixmap.scaled(self.smooth_img_label.size()))
 
     def add_noise(self):
         if self.original_array is not None:
@@ -351,9 +334,7 @@ class ImchangerApp(QMainWindow):
         if self.noised_array is not None and self.smooth_array is not None:
             diff_map = absolute_difference_map(self.noised_array, self.smooth_array)
             pixmap = self.array_to_pixmap(diff_map)
-            self.smooth_label.setPixmap(pixmap.scaled(self.smooth_label.size(), 
-                                                     Qt.KeepAspectRatio, 
-                                                     Qt.SmoothTransformation))
+            self.smooth_label.setPixmap(pixmap.scaled(self.smooth_label.size()))
 
     def sigma_slider_changed(self, value):
         self.sigma_value = value / 10.0
@@ -371,13 +352,9 @@ class ImchangerApp(QMainWindow):
         """Обновляет отображение на вкладке резкости"""
         if self.clarity_array is not None:
             pixmap = self.array_to_pixmap(self.clarity_array)
-            self.clarity_label.setPixmap(pixmap.scaled(self.clarity_label.size(), 
-                                                     Qt.KeepAspectRatio, 
-                                                     Qt.SmoothTransformation))
+            self.clarity_label.setPixmap(pixmap.scaled(self.clarity_label.size()))
             # Обновляем миниатюру на главной странице
-            self.clarity_img_label.setPixmap(pixmap.scaled(self.clarity_img_label.size(),
-                                                          Qt.KeepAspectRatio,
-                                                          Qt.SmoothTransformation))
+            self.clarity_img_label.setPixmap(pixmap.scaled(self.clarity_img_label.size()))
 
     def apply_unsharp_masking(self):
         if self.original_array is not None:
