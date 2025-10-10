@@ -93,14 +93,14 @@ def gaussian_kernel(size: int, sigma: float) -> np.ndarray:
     """
     Создаёт гауссово ядро размером size x size.
     """
-    kernel = np.zeros((size, size), dtype=np.float64)
+    kernel = np.zeros((size, size), dtype=np.float64) # условно матрица весов
     center = size // 2 
     s = 2 * (sigma ** 2)
     total = 0.0
 
     for i in range(size):
         for j in range(size):
-            x, y = i - center, j - center
+            x, y = i - center, j - center # расстояние от центра
             val = np.exp(-(x**2 + y**2) / s)
             kernel[i, j] = val
             total += val
@@ -127,9 +127,6 @@ def gaussian_filter(image: np.ndarray, sigma: float) -> np.ndarray:
     return filter_image.astype(np.uint8)
 
 def sigma_filter(image: np.ndarray, sigma: float, window_size: int) -> np.ndarray:
-    """
-    Применяет сигма-фильтр к одноканальному изображению.
-    """
     n, m, channels = image.shape
     pad = window_size//2
     padded_image = np.pad(image, ((pad, pad), (pad, pad), (0, 0)), mode='edge') # добавляем по краям, но не в каналы
@@ -138,13 +135,13 @@ def sigma_filter(image: np.ndarray, sigma: float, window_size: int) -> np.ndarra
     for c in range(channels):
         for i in range(n):
             for j in range(m):
-                center_val = padded_image[i + pad, j + pad, c]
-                total_val = 0.0
+                center_val = padded_image[i + pad, j + pad, c] #  яркость центрального пикселя.
+                total_val = 0.0 
                 total_weight = 0.0 
-                for di in range(-pad, pad + 1):
+                for di in range(-pad, pad + 1): # ходим в окне
                     for dj in range(-pad, pad + 1):
                         neighbor_val = padded_image[i + pad + di, j + pad + dj, c]
-                        if abs(center_val - neighbor_val) <= sigma:
+                        if abs(center_val - neighbor_val) <= sigma: # если разница меньше сигмы
                             total_val += neighbor_val
                             total_weight += 1
                 if total_weight > 0:
