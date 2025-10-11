@@ -36,8 +36,8 @@ def power_transform(image: np.ndarray, gamma: float) -> np.ndarray:
     """Степенное преобразование изображения с произвольным значением гаммы - оптимизированная версия."""
     image_float = image.astype(np.float32) / 255
     c = 255 / np.log(1 + np.max(image_float))
-    transformed = (c* image_float**gamma)/255
-    return np.clip(transformed * 255, 0, 255).astype(np.uint8)
+    transformed = c* image_float**gamma
+    return np.clip(transformed, 0, 255).astype(np.uint8)
 
 def binary_transform(image: np.ndarray, threshold: int) -> np.ndarray:
     """Бинарное преобразование с произвольным пороговым значением."""
