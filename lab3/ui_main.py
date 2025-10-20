@@ -18,13 +18,14 @@ from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient,
     QTransform)
 from PySide6.QtWidgets import (QApplication, QFrame, QGroupBox, QLabel,
     QMainWindow, QMenuBar, QPushButton, QRadioButton,
-    QSizePolicy, QSlider, QStatusBar, QWidget)
+    QSizePolicy, QSlider, QStatusBar, QWidget, QComboBox, 
+    QLineEdit, QTextEdit, QCheckBox)
 
 class Ui_Imchanger(object):
     def setupUi(self, Imchanger):
         if not Imchanger.objectName():
             Imchanger.setObjectName(u"Imchanger")
-        Imchanger.resize(1704, 874)
+        Imchanger.resize(1704, 1100)
         self.actionload_file = QAction(Imchanger)
         self.actionload_file.setObjectName(u"actionload_file")
         icon = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.DocumentSave))
@@ -193,6 +194,96 @@ class Ui_Imchanger(object):
         self.c_label = QLabel(self.centralwidget)
         self.c_label.setObjectName(u"c_label")
         self.c_label.setGeometry(QRect(800, 650, 131, 18))
+        
+        # Дополнительные UI элементы для новых функций
+        self.convolution_group = QGroupBox(self.centralwidget)
+        self.convolution_group.setObjectName(u"convolution_group")
+        self.convolution_group.setGeometry(QRect(20, 820, 300, 200))
+        
+        self.kernel_combo = QComboBox(self.convolution_group)
+        self.kernel_combo.setObjectName(u"kernel_combo")
+        self.kernel_combo.setGeometry(QRect(10, 20, 120, 22))
+        
+        self.kernel_size_edit = QLineEdit(self.convolution_group)
+        self.kernel_size_edit.setObjectName(u"kernel_size_edit")
+        self.kernel_size_edit.setGeometry(QRect(140, 20, 40, 22))
+        
+        self.kernel_text_edit = QTextEdit(self.convolution_group)
+        self.kernel_text_edit.setObjectName(u"kernel_text_edit")
+        self.kernel_text_edit.setGeometry(QRect(10, 50, 280, 60))
+        
+        self.normalize_checkbox = QCheckBox(self.convolution_group)
+        self.normalize_checkbox.setObjectName(u"normalize_checkbox")
+        self.normalize_checkbox.setGeometry(QRect(10, 120, 100, 20))
+        
+        self.add_128_checkbox = QCheckBox(self.convolution_group)
+        self.add_128_checkbox.setObjectName(u"add_128_checkbox")
+        self.add_128_checkbox.setGeometry(QRect(120, 120, 100, 20))
+        
+        self.apply_convolution_button = QPushButton(self.convolution_group)
+        self.apply_convolution_button.setObjectName(u"apply_convolution_button")
+        self.apply_convolution_button.setGeometry(QRect(10, 150, 120, 30))
+        
+        self.corner_group = QGroupBox(self.centralwidget)
+        self.corner_group.setObjectName(u"corner_group")
+        self.corner_group.setGeometry(QRect(330, 820, 200, 120))
+        
+        self.harris_button = QPushButton(self.corner_group)
+        self.harris_button.setObjectName(u"harris_button")
+        self.harris_button.setGeometry(QRect(10, 20, 80, 30))
+        
+        self.shi_tomasi_button = QPushButton(self.corner_group)
+        self.shi_tomasi_button.setObjectName(u"shi_tomasi_button")
+        self.shi_tomasi_button.setGeometry(QRect(100, 20, 80, 30))
+        
+        self.corner_threshold_slider = QSlider(self.corner_group)
+        self.corner_threshold_slider.setObjectName(u"corner_threshold_slider")
+        self.corner_threshold_slider.setGeometry(QRect(90, 60, 90, 16))
+        self.corner_threshold_slider.setMinimum(1)
+        self.corner_threshold_slider.setMaximum(100)
+        self.corner_threshold_slider.setValue(10)
+        self.corner_threshold_slider.setOrientation(Qt.Orientation.Horizontal)
+        
+        self.corner_threshold_label = QLabel(self.corner_group)
+        self.corner_threshold_label.setObjectName(u"corner_threshold_label")
+        self.corner_threshold_label.setGeometry(QRect(10, 60, 80, 16))
+        
+        self.edge_group = QGroupBox(self.centralwidget)
+        self.edge_group.setObjectName(u"edge_group")
+        self.edge_group.setGeometry(QRect(540, 820, 200, 120))
+        
+        self.sobel_button = QPushButton(self.edge_group)
+        self.sobel_button.setObjectName(u"sobel_button")
+        self.sobel_button.setGeometry(QRect(10, 20, 80, 30))
+        
+        self.canny_button = QPushButton(self.edge_group)
+        self.canny_button.setObjectName(u"canny_button")
+        self.canny_button.setGeometry(QRect(100, 20, 80, 30))
+        
+        self.canny_low_slider = QSlider(self.edge_group)
+        self.canny_low_slider.setObjectName(u"canny_low_slider")
+        self.canny_low_slider.setGeometry(QRect(50, 60, 60, 16))
+        self.canny_low_slider.setMinimum(10)
+        self.canny_low_slider.setMaximum(200)
+        self.canny_low_slider.setValue(50)
+        self.canny_low_slider.setOrientation(Qt.Orientation.Horizontal)
+        
+        self.canny_high_slider = QSlider(self.edge_group)
+        self.canny_high_slider.setObjectName(u"canny_high_slider")
+        self.canny_high_slider.setGeometry(QRect(160, 60, 30, 16))
+        self.canny_high_slider.setMinimum(50)
+        self.canny_high_slider.setMaximum(300)
+        self.canny_high_slider.setValue(150)
+        self.canny_high_slider.setOrientation(Qt.Orientation.Horizontal)
+        
+        self.canny_low_label = QLabel(self.edge_group)
+        self.canny_low_label.setObjectName(u"canny_low_label")
+        self.canny_low_label.setGeometry(QRect(10, 60, 40, 16))
+        
+        self.canny_high_label = QLabel(self.edge_group)
+        self.canny_high_label.setObjectName(u"canny_high_label")
+        self.canny_high_label.setGeometry(QRect(120, 60, 40, 16))
+        
         Imchanger.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(Imchanger)
         self.menubar.setObjectName(u"menubar")
@@ -236,5 +327,38 @@ class Ui_Imchanger(object):
         self.average_blur_rbutton.setText(QCoreApplication.translate("Imchanger", u"Average Blur", None))
         self.gauss_filter_rbutton.setText(QCoreApplication.translate("Imchanger", u"Gauss Filter", None))
         self.c_label.setText(QCoreApplication.translate("Imchanger", u"...", None))
+        
+        # Тексты для новых элементов
+        self.convolution_group.setTitle(QCoreApplication.translate("Imchanger", u"Свёртка с матрицей", None))
+        self.kernel_size_edit.setText(QCoreApplication.translate("Imchanger", u"3", None))
+        self.kernel_text_edit.setPlainText(QCoreApplication.translate("Imchanger", u"1 1 1\n1 1 1\n1 1 1", None))
+        self.normalize_checkbox.setText(QCoreApplication.translate("Imchanger", u"Нормализация", None))
+        self.add_128_checkbox.setText(QCoreApplication.translate("Imchanger", u"+128", None))
+        self.apply_convolution_button.setText(QCoreApplication.translate("Imchanger", u"Применить свёртку", None))
+        
+        self.corner_group.setTitle(QCoreApplication.translate("Imchanger", u"Детекция углов", None))
+        self.harris_button.setText(QCoreApplication.translate("Imchanger", u"Харрис", None))
+        self.shi_tomasi_button.setText(QCoreApplication.translate("Imchanger", u"Shi-Tomasi", None))
+        self.corner_threshold_label.setText(QCoreApplication.translate("Imchanger", u"Порог:", None))
+        
+        self.edge_group.setTitle(QCoreApplication.translate("Imchanger", u"Детекция границ", None))
+        self.sobel_button.setText(QCoreApplication.translate("Imchanger", u"Собель", None))
+        self.canny_button.setText(QCoreApplication.translate("Imchanger", u"Канни", None))
+        self.canny_low_label.setText(QCoreApplication.translate("Imchanger", u"Низ:", None))
+        self.canny_high_label.setText(QCoreApplication.translate("Imchanger", u"Выс:", None))
     # retranslateUi
+    
+    def setup_additional_controls(self):
+        """Инициализирует дополнительные элементы управления"""
+        # Импортируем функцию здесь, чтобы избежать циклических импортов
+        from helpers import get_standard_kernels
+        
+        # Заполняем ComboBox стандартными ядрами
+        standard_kernels = get_standard_kernels()
+        self.kernel_combo.addItems(standard_kernels.keys())
+        
+        # Устанавливаем начальные значения
+        self.normalize_checkbox.setChecked(True)
+        self.kernel_size_edit.setText("3")
+        self.kernel_text_edit.setPlainText("1 1 1\n1 1 1\n1 1 1")
 

@@ -9,7 +9,10 @@ import numpy as np
 
 from ui_main import Ui_Imchanger
 from helpers import (get_histogram, draw_histogram_image,
-                     gaussian_filter, avarage_filter, get_hf_simple)
+                     gaussian_filter, avarage_filter, get_hf_simple,
+                     apply_convolution_filter, parse_kernel_from_string, get_standard_kernels,
+                     harris_corner_detection, shi_tomasi_corner_detection,
+                     sobel_edge_detection, canny_edge_detection)
 
 
 class MainWindow(QMainWindow, Ui_Imchanger):
@@ -58,6 +61,9 @@ class MainWindow(QMainWindow, Ui_Imchanger):
 
         self.image_label.setMouseTracking(True)
         self.image_label.mouseMoveEvent = self.on_image_mouse_move
+        
+        # Инициализируем дополнительные элементы управления
+        self.setup_additional_controls()
 
     @staticmethod
     def pil_to_qpixmap(pil: Image.Image) -> QPixmap:
@@ -110,6 +116,19 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         self.cursor_label.setAlignment(Qt.AlignCenter)
         self.cursor_label.setStyleSheet("border: 1px solid gray; background: black;")
         self.cursor_label.setText("Наведите курсор\nна изображение")
+    
+    def setup_additional_controls(self):
+        """Настраивает связи событий для дополнительных элементов управления"""
+        # Вызываем метод из UI класса для инициализации элементов
+        super().setup_additional_controls()
+        
+        # Настраиваем связи событий
+        self.kernel_combo.currentTextChanged.connect(self.on_kernel_combo_changed)
+        self.apply_convolution_button.clicked.connect(self.apply_convolution_filter)
+        self.harris_button.clicked.connect(self.apply_harris_corners)
+        self.shi_tomasi_button.clicked.connect(self.apply_shi_tomasi_corners)
+        self.sobel_button.clicked.connect(self.apply_sobel_edges)
+        self.canny_button.clicked.connect(self.apply_canny_edges)
 
     def display_original_image_in_frame(self):
         if self.original_pil is None:
@@ -495,7 +514,10 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         else:
             return
         
-        self.current_np = smooth_func(self.current_np, 5)
+        if self.average_blur_rbutton.isChecked():
+            self.current_np = smooth_func(self.current_np, 5)
+        elif self.gauss_filter_rbutton.isChecked():
+            self.current_np = smooth_func(self.current_np, 1.0)  # sigma для гаусса
         self.current_pil = Image.fromarray(self.current_np)
 
         self.display_original_image_in_frame()
@@ -514,11 +536,96 @@ class MainWindow(QMainWindow, Ui_Imchanger):
 
         self.display_original_image_in_frame()
         
-
-        self.display_original_image_in_frame()
-        
         self.update_stats()
         self.update_previews()
+    
+    def on_kernel_combo_changed(self, kernel_name):
+        """Обновляет текстовое поле при выборе стандартного ядра"""
+        standard_kernels = get_standard_kernels()
+        if kernel_name in standard_kernels:
+            kernel = standard_kernels[kernel_name]
+            size = kernel.shape[0]
+            self.kernel_size_edit.setText(str(size))
+            
+            # Преобразуем матрицу в строку
+            kernel_str = ""
+            for i in range(size):
+                row = " ".join([str(int(kernel[i, j])) if kernel[i, j] == int(kernel[i, j]) else f"{kernel[i, j]:.1f}" for j in range(size)])
+                kernel_str += row + "\n"
+            self.kernel_text_edit.setPlainText(kernel_str.strip())
+    
+    def apply_convolution_filter(self):
+        """Применяет свёртку с пользовательской матрицей"""
+        if self.current_np is None:
+            return
+        
+        try:
+            # Получаем размер ядра
+            size = int(self.kernel_size_edit.text())
+            
+            # Парсим ядро из текстового поля
+            kernel_str = self.kernel_text_edit.toPlainText()
+            kernel = parse_kernel_from_string(kernel_str, size)
+            
+            # Получаем параметры
+            normalize = self.normalize_checkbox.isChecked()
+            add_128 = self.add_128_checkbox.isChecked()
+            
+            # Применяем фильтр
+            result = apply_convolution_filter(self.current_np, kernel, normalize, add_128)
+            self.set_modified_image(result)
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Ошибка при применении свёртки:\n{str(e)}")
+    
+    def apply_harris_corners(self):
+        """Применяет детекцию углов методом Харриса"""
+        if self.current_np is None:
+            return
+        
+        try:
+            threshold = self.corner_threshold_slider.value() / 1000.0  # Преобразуем в диапазон 0.001-0.1
+            result = harris_corner_detection(self.current_np, threshold=threshold)
+            self.set_modified_image(result)
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Ошибка при детекции углов Харриса:\n{str(e)}")
+    
+    def apply_shi_tomasi_corners(self):
+        """Применяет детекцию углов методом Shi-Tomasi"""
+        if self.current_np is None:
+            return
+        
+        try:
+            quality_level = self.corner_threshold_slider.value() / 1000.0  # Преобразуем в диапазон 0.001-0.1
+            result = shi_tomasi_corner_detection(self.current_np, quality_level=quality_level)
+            self.set_modified_image(result)
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Ошибка при детекции углов Shi-Tomasi:\n{str(e)}")
+    
+    def apply_sobel_edges(self):
+        """Применяет детекцию границ оператором Собеля"""
+        if self.current_np is None:
+            return
+        
+        try:
+            add_128 = self.add_128_checkbox.isChecked()
+            result = sobel_edge_detection(self.current_np, add_128=add_128)
+            self.set_modified_image(result)
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Ошибка при детекции границ Собеля:\n{str(e)}")
+    
+    def apply_canny_edges(self):
+        """Применяет детекцию границ алгоритмом Канни"""
+        if self.current_np is None:
+            return
+        
+        try:
+            low_threshold = self.canny_low_slider.value()
+            high_threshold = self.canny_high_slider.value()
+            result = canny_edge_detection(self.current_np, low_threshold, high_threshold)
+            self.set_modified_image(result)
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Ошибка при детекции границ Канни:\n{str(e)}")
         
             
 
