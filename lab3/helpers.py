@@ -177,18 +177,18 @@ def get_hf_simple(original_image: np.ndarray, lf_image: np.ndarray, c: float) ->
     Получает высокочастотное изображение по правилу ВЧ = ИСХ - РАЗМ*c
     Решает проблему отрицательной яркости через нормализацию
     """
-    high_pass = original_image.astype(np.float32) - c * lf_image.astype(np.float32)
+    high_pass_img = original_image.astype(np.float32) - c * lf_image.astype(np.float32) # float32 т.к. можем в минус уйти
     
     # Решение проблемы отрицательной яркости - нормализация к [0, 255]
-    high_pass_min = high_pass.min()
-    high_pass_max = high_pass.max()
+    high_pass_min = high_pass_img.min()
+    high_pass_max = high_pass_img.max()
     
     if high_pass_max > high_pass_min:  # избегаем деления на ноль
-        high_pass = 255 * (high_pass - high_pass_min) / (high_pass_max - high_pass_min)
+        high_pass_img = 255 * (high_pass_img - high_pass_min) / (high_pass_max - high_pass_min)
     else:
-        high_pass = np.zeros_like(high_pass)
+        high_pass_img = np.zeros_like(high_pass_img)
     
-    return np.clip(high_pass, 0, 255).astype(np.uint8)
+    return np.clip(high_pass_img, 0, 255).astype(np.uint8)
 
 
 def apply_convolution_filter(image: np.ndarray, kernel: np.ndarray, normalize: bool = True, add_128: bool = False) -> np.ndarray:
