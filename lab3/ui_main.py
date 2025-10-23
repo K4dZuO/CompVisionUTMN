@@ -117,7 +117,7 @@ class Ui_Imchanger(object):
         self.c_slider.setMaximum(100)
         self.c_slider.setSingleStep(1)
         self.c_slider.setPageStep(0)
-        self.c_slider.setValue(1)
+        self.c_slider.setValue(10)
         self.c_slider.setOrientation(Qt.Orientation.Horizontal)
         self.label = QLabel(self.centralwidget)
         self.label.setObjectName(u"label")
@@ -326,7 +326,7 @@ class Ui_Imchanger(object):
         self.groupBox.setTitle(QCoreApplication.translate("Imchanger", u"Simple LF ilter", None))
         self.average_blur_rbutton.setText(QCoreApplication.translate("Imchanger", u"Average Blur", None))
         self.gauss_filter_rbutton.setText(QCoreApplication.translate("Imchanger", u"Gauss Filter", None))
-        self.c_label.setText(QCoreApplication.translate("Imchanger", u"...", None))
+        self.c_label.setText(QCoreApplication.translate("Imchanger", u"1.0", None))
         
         # Тексты для новых элементов
         self.convolution_group.setTitle(QCoreApplication.translate("Imchanger", u"Свёртка с матрицей", None))
