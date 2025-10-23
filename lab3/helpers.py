@@ -179,7 +179,6 @@ def get_hf_simple(original_image: np.ndarray, lf_image: np.ndarray, c: float) ->
     """
     high_pass_img = original_image.astype(np.float32) - c * lf_image.astype(np.float32) # float32 т.к. можем в минус уйти
     
-    # Решение проблемы отрицательной яркости - нормализация к [0, 255]
     high_pass_min = high_pass_img.min()
     high_pass_max = high_pass_img.max()
     

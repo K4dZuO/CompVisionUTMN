@@ -226,19 +226,19 @@ class Ui_Imchanger(object):
         
         self.corner_group = QGroupBox(self.centralwidget)
         self.corner_group.setObjectName(u"corner_group")
-        self.corner_group.setGeometry(QRect(330, 820, 200, 120))
+        self.corner_group.setGeometry(QRect(330, 820, 250, 150))
         
         self.harris_button = QPushButton(self.corner_group)
         self.harris_button.setObjectName(u"harris_button")
-        self.harris_button.setGeometry(QRect(10, 20, 80, 30))
+        self.harris_button.setGeometry(QRect(10, 30, 80, 30))
         
         self.shi_tomasi_button = QPushButton(self.corner_group)
         self.shi_tomasi_button.setObjectName(u"shi_tomasi_button")
-        self.shi_tomasi_button.setGeometry(QRect(100, 20, 80, 30))
+        self.shi_tomasi_button.setGeometry(QRect(130, 30, 80, 30))
         
         self.corner_threshold_slider = QSlider(self.corner_group)
         self.corner_threshold_slider.setObjectName(u"corner_threshold_slider")
-        self.corner_threshold_slider.setGeometry(QRect(90, 60, 90, 16))
+        self.corner_threshold_slider.setGeometry(QRect(90, 70, 10, 16))
         self.corner_threshold_slider.setMinimum(1)
         self.corner_threshold_slider.setMaximum(100)
         self.corner_threshold_slider.setValue(10)
@@ -246,23 +246,23 @@ class Ui_Imchanger(object):
         
         self.corner_threshold_label = QLabel(self.corner_group)
         self.corner_threshold_label.setObjectName(u"corner_threshold_label")
-        self.corner_threshold_label.setGeometry(QRect(10, 60, 80, 16))
+        self.corner_threshold_label.setGeometry(QRect(10, 70, 80, 16))
         
         self.edge_group = QGroupBox(self.centralwidget)
         self.edge_group.setObjectName(u"edge_group")
-        self.edge_group.setGeometry(QRect(540, 820, 200, 120))
+        self.edge_group.setGeometry(QRect(740, 820, 250, 150))
         
         self.sobel_button = QPushButton(self.edge_group)
         self.sobel_button.setObjectName(u"sobel_button")
-        self.sobel_button.setGeometry(QRect(10, 20, 80, 30))
+        self.sobel_button.setGeometry(QRect(20, 30, 80, 30))
         
         self.canny_button = QPushButton(self.edge_group)
         self.canny_button.setObjectName(u"canny_button")
-        self.canny_button.setGeometry(QRect(100, 20, 80, 30))
+        self.canny_button.setGeometry(QRect(140, 30, 80, 30))
         
         self.canny_low_slider = QSlider(self.edge_group)
         self.canny_low_slider.setObjectName(u"canny_low_slider")
-        self.canny_low_slider.setGeometry(QRect(50, 60, 60, 16))
+        self.canny_low_slider.setGeometry(QRect(50, 70, 150, 16))
         self.canny_low_slider.setMinimum(10)
         self.canny_low_slider.setMaximum(200)
         self.canny_low_slider.setValue(50)
@@ -270,7 +270,7 @@ class Ui_Imchanger(object):
         
         self.canny_high_slider = QSlider(self.edge_group)
         self.canny_high_slider.setObjectName(u"canny_high_slider")
-        self.canny_high_slider.setGeometry(QRect(160, 60, 30, 16))
+        self.canny_high_slider.setGeometry(QRect(50, 100, 150, 16))
         self.canny_high_slider.setMinimum(50)
         self.canny_high_slider.setMaximum(300)
         self.canny_high_slider.setValue(150)
@@ -278,11 +278,11 @@ class Ui_Imchanger(object):
         
         self.canny_low_label = QLabel(self.edge_group)
         self.canny_low_label.setObjectName(u"canny_low_label")
-        self.canny_low_label.setGeometry(QRect(10, 60, 40, 16))
+        self.canny_low_label.setGeometry(QRect(10, 70, 40, 16))
         
         self.canny_high_label = QLabel(self.edge_group)
         self.canny_high_label.setObjectName(u"canny_high_label")
-        self.canny_high_label.setGeometry(QRect(120, 60, 40, 16))
+        self.canny_high_label.setGeometry(QRect(10, 100, 40, 16))
         
         Imchanger.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(Imchanger)
