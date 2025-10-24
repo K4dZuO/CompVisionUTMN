@@ -6,6 +6,7 @@ from PySide6.QtCore import Qt
 from PIL import Image
 from PIL.ImageQt import ImageQt
 import numpy as np
+import time
 
 from ui_main import Ui_Imchanger
 from helpers import (get_histogram, draw_histogram_image,
@@ -578,6 +579,15 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Ошибка при применении свёртки:\n{str(e)}")
     
+    def count_time(func):
+        def wrapper(*args, **kwargs):
+            t0 = time.time()
+            func(*args, **kwargs)
+            t1 = time.time()
+            print(f"Функция {func.__name__} заняла {t1-t0} секунд")
+        return wrapper
+        
+    @count_time
     def apply_harris_corners(self):
         """Применяет детекцию углов методом Харриса"""
         if self.current_np is None:
@@ -590,6 +600,7 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Ошибка при детекции углов Харриса:\n{str(e)}")
     
+    @count_time
     def apply_shi_tomasi_corners(self):
         """Применяет детекцию углов методом Shi-Tomasi"""
         if self.current_np is None:
@@ -601,7 +612,8 @@ class MainWindow(QMainWindow, Ui_Imchanger):
             self.set_modified_image(result)
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Ошибка при детекции углов Shi-Tomasi:\n{str(e)}")
-    
+
+    @count_time
     def apply_sobel_edges(self):
         """Применяет детекцию границ оператором Собеля"""
         if self.current_np is None:
@@ -614,6 +626,7 @@ class MainWindow(QMainWindow, Ui_Imchanger):
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Ошибка при детекции границ Собеля:\n{str(e)}")
     
+    @count_time
     def apply_canny_edges(self):
         """Применяет детекцию границ алгоритмом Канни"""
         if self.current_np is None:
