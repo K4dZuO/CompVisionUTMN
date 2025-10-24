@@ -270,6 +270,12 @@ def harris_corner_detection(image: np.ndarray, k: float = 0.04, threshold: float
     return result
 
 
+    for coord in coords:
+        y, x = coord
+        cv2.circle(result, (x, y), 3, (255, 0, 0), -1)
+
+    return result
+
 def _shi_tomasi_response(Ixx, Iyy, Ixy):
     # Находим собственные значения вручную: λ = (T ± sqrt(T² - 4D)) / 2
     T = Ixx + Iyy
