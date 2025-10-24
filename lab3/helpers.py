@@ -371,54 +371,67 @@ def harris_corner_detection(image: np.ndarray, k: float = 0.04, threshold: float
     else:
         gray = image.copy()
     
-    # ОПТИМИЗАЦИЯ 3: Использование float32 для экономии памяти
     gray = gray.astype(np.float32)
     
-    # ОПТИМИЗАЦИЯ 4: Вычисление градиентов с правильным типом данных
+    # Вычисление градиентов
     Ix = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3)
     Iy = cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3)
     
-    # ОПТИМИЗАЦИЯ 5: Векторизованное вычисление элементов матрицы Харриса
+    # ОПТИМИЗАЦИЯ 3: Векторизованное вычисление элементов матрицы Харриса
     Ixx = Ix * Ix
     Ixy = Ix * Iy
     Iyy = Iy * Iy
     
-    # ОПТИМИЗАЦИЯ 6: Использование большего размера ядра для лучшего сглаживания
+    # ОПТИМИЗАЦИЯ 4: Использование большего размера ядра для лучшего сглаживания
     kernel_size = 5  # Увеличиваем размер ядра для лучшего качества
     sigma = 1.0
     Ixx = cv2.GaussianBlur(Ixx, (kernel_size, kernel_size), sigma)
     Ixy = cv2.GaussianBlur(Ixy, (kernel_size, kernel_size), sigma)
     Iyy = cv2.GaussianBlur(Iyy, (kernel_size, kernel_size), sigma)
     
-    # ОПТИМИЗАЦИЯ 7: Векторизованное вычисление детерминанта и следа
+    
+    
+    # Функция отклика Харриса R=det(M)−k⋅(trace(M))^2
+    # ОПТИМИЗАЦИЯ 5 вычисление детерминанта и следа
     det = Ixx * Iyy - Ixy * Ixy
     trace = Ixx + Iyy
     
-    # ОПТИМИЗАЦИЯ 8: Вычисление отклика Харриса с проверкой на деление на ноль
+    # ОПТИМИЗАЦИЯ 6: Вычисление отклика Харриса с проверкой на деление на ноль
     harris_response = det - k * (trace * trace)
     
-    # ОПТИМИЗАЦИЯ 9: Улучшенная нормализация с проверкой на максимум
-    harris_response = np.maximum(harris_response, 0)
+    # ОПТИМИЗАЦИЯ 7: Улучшенная нормализация с проверкой на максимум
+    harris_response = np.maximum(harris_response, 0) # избавляемся от отрицительных значений
     max_val = harris_response.max()
     if max_val > 0:
-        harris_response = harris_response / max_val
+        harris_response = harris_response / max_val # нормализуем
     
-    # ОПТИМИЗАЦИЯ 10: Использование non-maximum suppression для лучшего качества
+    # ОПТИМИЗАЦИЯ 8: Использование non-maximum suppression для лучшего качества
     # Находим локальные максимумы
+    # Исходный массив:
+    # [[1 2 3]
+    #  [4 5 6]
+    #  [7 8 9]]
+
+    # После maximum_filter(size=3):
+    # [[5 6 6]
+    #  [8 9 9]
+    #  [8 9 9]]
     from scipy.ndimage import maximum_filter
-    local_maxima = maximum_filter(harris_response, size=3) == harris_response
-    corners = (harris_response > threshold) & local_maxima
+    local_maxima = maximum_filter(harris_response, size=3) == harris_response # маска где макс. пиксели совпали с результатом ф-ии Харриса
+    corners = (harris_response > threshold) & local_maxima # маска и угол
     
     # Создаем результат
     result = image.copy()
     if len(result.shape) == 2:
         result = cv2.cvtColor(result, cv2.COLOR_GRAY2RGB)
     
-    # ОПТИМИЗАЦИЯ 11: Векторизованное отмечение углов
-    result[corners] = [255, 0, 0]
-    
-    return result
+    coords = np.argwhere(corners)  # Возвращает массив [[y1, x1], [y2, x2], ...]
 
+    for coord in coords:
+        y, x = coord
+        cv2.circle(result, (x, y), 3, (255, 0, 0), -1)
+
+    return result
 
 def shi_tomasi_corner_detection(image: np.ndarray, max_corners: int = 100, quality_level: float = 0.01, min_distance: int = 10) -> np.ndarray:
     """
