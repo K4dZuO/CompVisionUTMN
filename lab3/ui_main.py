@@ -238,7 +238,7 @@ class Ui_Imchanger(object):
         
         self.corner_threshold_slider = QSlider(self.corner_group)
         self.corner_threshold_slider.setObjectName(u"corner_threshold_slider")
-        self.corner_threshold_slider.setGeometry(QRect(90, 70, 10, 16))
+        self.corner_threshold_slider.setGeometry(QRect(90, 70, 100, 16))
         self.corner_threshold_slider.setMinimum(1)
         self.corner_threshold_slider.setMaximum(100)
         self.corner_threshold_slider.setValue(10)
