@@ -6,7 +6,6 @@ from io import BytesIO
 
 
 def get_histogram(image_2d: np.ndarray) -> np.ndarray:
-    """Считает гистограмму вручную (без np.histogram)."""
     hist = np.zeros(256, dtype=np.int32)
     flat = image_2d.ravel()
     for val in flat:
@@ -65,7 +64,6 @@ def custom_colormap_manual(image_np):
 
 
 def _manual_convolve2d(image: np.ndarray, kernel: np.ndarray) -> np.ndarray:
-    """Ручная свёртка 2D без scipy."""
     h, w = image.shape
     k_h, k_w = kernel.shape
     pad_h, pad_w = k_h // 2, k_w // 2
@@ -203,7 +201,6 @@ def get_standard_kernels():
 
 
 def _sobel_gradients(gray: np.ndarray):
-    """Ручной Собель без cv2."""
     h, w = gray.shape
     Gx = np.zeros_like(gray, dtype=np.float32)
     Gy = np.zeros_like(gray, dtype=np.float32)
@@ -356,7 +353,6 @@ def shi_tomasi_corner_detection(image: np.ndarray, max_corners: int = 100, quali
 
 
 def cv2_style_circle(img, cx, cy, radius=3, color=(255, 255, 255)):
-    """Простая замена cv2.circle без OpenCV."""
     h, w = img.shape[:2]
     for dy in range(-radius, radius + 1):
         for dx in range(-radius, radius + 1):
