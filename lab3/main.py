@@ -9,7 +9,7 @@ import numpy as np
 import time
 
 from ui_main import Ui_Imchanger
-from helpers import (get_histogram, draw_histogram_image,
+from helpers_1 import (get_histogram, draw_histogram_image,
                      gaussian_filter, avarage_filter, get_hf_simple,
                      apply_convolution_filter, parse_kernel_from_string, get_standard_kernels,
                      harris_corner_detection, shi_tomasi_corner_detection,

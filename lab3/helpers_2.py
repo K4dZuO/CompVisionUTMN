@@ -5,8 +5,102 @@ from PIL import Image
 from io import BytesIO
 
 
+# ========================
+# ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+# ========================
+
+def _separable_convolve_vectorized(image: np.ndarray, kernel_1d: np.ndarray) -> np.ndarray:
+    """
+    Полностью векторизованная сепарабельная свёртка без циклов.
+    """
+    h, w = image.shape
+    k = len(kernel_1d)
+    pad = k // 2
+
+    # Горизонтальная свёртка
+    padded_h = np.pad(image, ((0, 0), (pad, pad)), mode='reflect')
+    # Векторизуем через einsum
+    temp = np.array([
+        np.dot(padded_h[i, j:j + k], kernel_1d)
+        for i in range(h)
+        for j in range(w)
+    ]).reshape(h, w)
+
+    # Вертикальная свёртка
+    padded_v = np.pad(temp, ((pad, pad), (0, 0)), mode='reflect')
+    output = np.array([
+        np.dot(padded_v[i:i + k, j], kernel_1d)
+        for j in range(w)
+        for i in range(h)
+    ]).reshape(h, w, order='F')  # или просто reshape(h, w)
+
+    return output
+
+
+def _integral_image_blur(image: np.ndarray, kernel_size: int) -> np.ndarray:
+    """
+    Усредняющий фильтр через интегральное изображение (O(1) на пиксель).
+    """
+    h, w = image.shape
+    r = kernel_size // 2
+
+    # Интегральное изображение
+    integral = np.cumsum(np.cumsum(image, axis=0), axis=1)
+    # Добавляем нулевую строку/столбец для удобства
+    integral = np.pad(integral, ((1, 0), (1, 0)), constant_values=0)
+
+    # Вычисляем сумму по прямоугольникам
+    A = integral[r:h+r, r:w+r]
+    B = integral[r:h+r, 0:w]
+    C = integral[0:h, r:w+r]
+    D = integral[0:h, 0:w]
+
+    summed = A - B - C + D
+    return summed / (kernel_size * kernel_size)
+
+
+def _gaussian_kernel_1d(size: int, sigma: float) -> np.ndarray:
+    if size <= 0 or size % 2 == 0:
+        size = 5
+    if sigma <= 0:
+        sigma = 1.0
+    center = size // 2
+    x = np.arange(size) - center
+    kernel = np.exp(-x ** 2 / (2 * sigma ** 2))
+    return kernel / kernel.sum()
+
+
+def _gaussian_derivative_kernel_1d(size: int, sigma: float) -> np.ndarray:
+    """Ядро ∂G/∂x (антисимметричное)."""
+    if size <= 0 or size % 2 == 0:
+        size = int(2 * ceil(3 * sigma)) + 1
+    center = size // 2
+    x = np.arange(size) - center
+    kernel = -x * np.exp(-x ** 2 / (2 * sigma ** 2))
+    norm = np.sum(np.abs(kernel))
+    return kernel / (sigma ** 2 * norm) if norm > 1e-10 else kernel
+
+
+def _manual_convolve2d(image: np.ndarray, kernel: np.ndarray) -> np.ndarray:
+    """Ручная 2D свёртка для несепарабельных ядер (оставлена для общности)."""
+    h, w = image.shape
+    k_h, k_w = kernel.shape
+    pad_h, pad_w = k_h // 2, k_w // 2
+    padded = np.pad(image, ((pad_h, pad_h), (pad_w, pad_w)), mode='reflect')
+    output = np.zeros_like(image, dtype=np.float32)
+
+    for i in range(h):
+        for j in range(w):
+            patch = padded[i:i + k_h, j:j + k_w]
+            output[i, j] = np.sum(patch * kernel)
+    return output
+
+
+# ========================
+# ОСНОВНЫЕ ФУНКЦИИ
+# ========================
+
 def get_histogram(image_2d: np.ndarray) -> np.ndarray:
-    """Считает гистограмму вручную (без np.histogram)."""
     hist = np.zeros(256, dtype=np.int32)
     flat = image_2d.ravel()
     for val in flat:
@@ -16,9 +110,6 @@ def get_histogram(image_2d: np.ndarray) -> np.ndarray:
 
 
 def draw_histogram_image(hist: np.ndarray, color: str = 'gray') -> Image.Image:
-    """
-    Рисует гистограмму с помощью matplotlib и возвращает как PIL.Image.
-    """
     fig, ax = plt.subplots(figsize=(6, 4))
     ax.bar(range(len(hist)), hist, width=1, color=color.lower(), edgecolor='none')
     ax.set_title(color.upper())
@@ -49,7 +140,6 @@ def custom_colormap_pillow(image_np):
 
 
 def custom_colormap_manual(image_np):
-    # Convert RGB to grayscale manually
     if image_np.shape[2] == 3:
         gray = 0.2989 * image_np[:, :, 0] + 0.5870 * image_np[:, :, 1] + 0.1140 * image_np[:, :, 2]
     else:
@@ -64,23 +154,6 @@ def custom_colormap_manual(image_np):
     return colored
 
 
-def _manual_convolve2d(image: np.ndarray, kernel: np.ndarray) -> np.ndarray:
-    """Ручная свёртка 2D без scipy."""
-    h, w = image.shape
-    k_h, k_w = kernel.shape
-    pad_h, pad_w = k_h // 2, k_w // 2
-
-    # Паддинг с симметричным отражением (аналог boundary='symm')
-    padded = np.pad(image, ((pad_h, pad_h), (pad_w, pad_w)), mode='reflect')
-    output = np.zeros_like(image, dtype=np.float32)
-
-    for i in range(h):
-        for j in range(w):
-            region = padded[i:i + k_h, j:j + k_w]
-            output[i, j] = np.sum(region * kernel)
-    return output
-
-
 def avarage_filter(image: np.ndarray, kernel_size: int = 5) -> np.ndarray:
     if image is None:
         raise ValueError("Изображение не может быть None")
@@ -89,36 +162,11 @@ def avarage_filter(image: np.ndarray, kernel_size: int = 5) -> np.ndarray:
     if kernel_size <= 0 or kernel_size % 2 == 0:
         kernel_size = 5
 
-    kernel = np.ones((kernel_size, kernel_size), dtype=np.float32)
-    kernel /= kernel.size
-
-    filtered = np.zeros_like(image, dtype=np.float32)
+    filtered = np.empty_like(image, dtype=np.float32)
     for c in range(image.shape[2]):
-        filtered[:, :, c] = _manual_convolve2d(image[:, :, c].astype(np.float32), kernel)
+        filtered[:, :, c] = _integral_image_blur(image[:, :, c].astype(np.float32), kernel_size)
 
     return np.clip(filtered, 0, 255).astype(np.uint8)
-
-
-def _gaussian_kernel(size: int, sigma: float = 5) -> np.ndarray:
-    if size <= 0 or size % 2 == 0:
-        size = 5
-    if sigma <= 0:
-        sigma = 1.0
-
-    center = size // 2
-    kernel = np.zeros((size, size), dtype=np.float32)
-    denom = 2 * sigma ** 2
-    total = 0.0
-
-    for i in range(size):
-        for j in range(size):
-            x, y = i - center, j - center
-            val = exp(-(x*x + y*y) / denom)
-            kernel[i, j] = val
-            total += val
-
-    kernel /= total
-    return kernel
 
 
 def gaussian_filter(image: np.ndarray, sigma: float) -> np.ndarray:
@@ -129,11 +177,12 @@ def gaussian_filter(image: np.ndarray, sigma: float) -> np.ndarray:
     if sigma <= 0:
         sigma = 1.0
 
-    kernel = _gaussian_kernel(2 * int(3 * sigma) + 1, sigma)
-    filtered = np.zeros_like(image, dtype=np.float32)
+    size = int(2 * ceil(3 * sigma)) + 1
+    kernel_1d = _gaussian_kernel_1d(size, sigma)
+    filtered = np.empty_like(image, dtype=np.float32)
 
     for c in range(image.shape[2]):
-        filtered[:, :, c] = _manual_convolve2d(image[:, :, c].astype(np.float32), kernel)
+        filtered[:, :, c] = _separable_convolve_vectorized(image[:, :, c].astype(np.float32), kernel_1d)
 
     return np.clip(filtered, 0, 255).astype(np.uint8)
 
@@ -202,82 +251,82 @@ def get_standard_kernels():
     return kernels
 
 
+def _gaussian_gradient(gray: np.ndarray, sigma: float = 1.0):
+    """Градиенты через аналитический градиент гауссиана (сепарабельно!)."""
+    size = int(2 * ceil(3 * sigma)) + 1
+    g = _gaussian_kernel_1d(size, sigma)
+    dg = _gaussian_derivative_kernel_1d(size, sigma)
+
+    # Gx = dg(x) * g(y), Gy = g(x) * dg(y)
+    Gx = _separable_convolve_vectorized(gray, dg)  # горизонт: dg, верт: g → но наша функция делает оба прохода
+    # Чтобы применить разные ядра по осям, нужно модифицировать, но для упрощения:
+    # Альтернатива: применить dg по строкам, потом g по столбцам вручную
+    # Здесь для простоты используем симметрию: Gx = convolve(dg) по x, Gy = convolve(dg) по y
+    # Реализуем через два вызова с транспонированием
+    temp_x = np.array([np.convolve(row, dg, mode='same') for row in gray])  # по строкам
+    Gx = np.array([np.convolve(col, g, mode='same') for col in temp_x.T]).T  # по столбцам
+
+    temp_y = np.array([np.convolve(col, dg, mode='same') for col in gray.T]).T  # по столбцам
+    Gy = np.array([np.convolve(row, g, mode='same') for row in temp_y])  # по строкам
+
+    return Gx.astype(np.float32), Gy.astype(np.float32)
+
+
 def _sobel_gradients(gray: np.ndarray):
-    """Ручной Собель без cv2."""
+    """Оставлен как fallback, но в Canny/Sobel используется _gaussian_gradient."""
     h, w = gray.shape
-    Gx = np.zeros_like(gray, dtype=np.float32)
-    Gy = np.zeros_like(gray, dtype=np.float32)
-
-    sobel_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=np.float32)
-    sobel_y = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype=np.float32)
-
-    for i in range(1, h - 1):
-        for j in range(1, w - 1):
-            region = gray[i-1:i+2, j-1:j+2]
-            Gx[i, j] = np.sum(region * sobel_x)
-            Gy[i, j] = np.sum(region * sobel_y)
-
-    return Gx, Gy
+    padded = np.pad(gray, 1, mode='reflect')
+    Ix = (-padded[1:-1, :-2] + padded[1:-1, 2:] +
+          -2 * padded[:-2, :-2] + 2 * padded[:-2, 2:] +
+          -padded[2:, :-2] + padded[2:, 2:])
+    Iy = (-padded[:-2, 1:-1] - 2 * padded[:-2, :-2] - padded[:-2, 2:] +
+          padded[2:, 1:-1] + 2 * padded[2:, :-2] + padded[2:, 2:])
+    return Ix.astype(np.float32), Iy.astype(np.float32)
 
 
 def harris_corner_detection(image: np.ndarray, k: float = 0.04, threshold: float = 0.01) -> np.ndarray:
-    if image is None:
-        raise ValueError("Изображение не может быть None")
-    if len(image.shape) not in [2, 3]:
-        raise ValueError("Изображение должно быть 2D или 3D")
+    if image is None or len(image.shape) not in [2, 3]:
+        raise ValueError("Неверный формат изображения")
 
     if len(image.shape) == 3:
-        gray = 0.2989 * image[:, :, 0] + 0.5870 * image[:, :, 1] + 0.1140 * image[:, :, 2]
+        gray = 0.2989 * image[..., 0] + 0.5870 * image[..., 1] + 0.1140 * image[..., 2]
     else:
         gray = image.astype(np.float32)
 
-    gray = gray.astype(np.float32)
+    # Используем Собель (можно заменить на гаусс-градиент)
     Ix, Iy = _sobel_gradients(gray)
+    Ixx, Iyy, Ixy = Ix * Ix, Iy * Iy, Ix * Iy
 
-    Ixx = Ix * Ix
-    Ixy = Ix * Iy
-    Iyy = Iy * Iy
-
-    # Применяем гауссово размытие вручную (ядро 5x5, sigma=1)
-    kernel = _gaussian_kernel(5, 1.0)
-    Ixx = _manual_convolve2d(Ixx, kernel)
-    Ixy = _manual_convolve2d(Ixy, kernel)
-    Iyy = _manual_convolve2d(Iyy, kernel)
+    kernel_1d = _gaussian_kernel_1d(5, 1.0)
+    Ixx = _separable_convolve_vectorized(Ixx, kernel_1d)
+    Iyy = _separable_convolve_vectorized(Iyy, kernel_1d)
+    Ixy = _separable_convolve_vectorized(Ixy, kernel_1d)
 
     det = Ixx * Iyy - Ixy * Ixy
     trace = Ixx + Iyy
-    R = det - k * (trace ** 2)
-
+    R = det - k * (trace * trace)
     R = np.maximum(R, 0)
-    max_val = R.max()
-    if max_val > 0:
-        R = R / max_val
+    if R.max() > 0:
+        R /= R.max()
 
-    # Non-max suppression вручную
-    h, w = R.shape
     local_max = np.zeros_like(R, dtype=bool)
-    for i in range(1, h - 1):
-        for j in range(1, w - 1):
-            if R[i, j] == R[i-1:i+2, j-1:j+2].max():
-                local_max[i, j] = True
+    shifts = [(dy, dx) for dy in (-1, 0, 1) for dx in (-1, 0, 1)]
+    for dy, dx in shifts:
+        shifted = np.roll(np.roll(R, dy, axis=0), dx, axis=1)
+        local_max |= (R >= shifted)
+    local_max[:1] = local_max[-1:] = False
+    local_max[:, :1] = local_max[:, -1:] = False
 
     corners = (R > threshold) & local_max
 
     result = image.copy()
-    if len(result.shape) == 2:
-        result = np.stack([result, result, result], axis=2)
+    if result.ndim == 2:
+        result = np.stack([result, result, result], axis=-1)
     result[corners] = [255, 0, 0]
     return result
 
 
-    for coord in coords:
-        y, x = coord
-        cv2.circle(result, (x, y), 3, (255, 0, 0), -1)
-
-    return result
-
 def _shi_tomasi_response(Ixx, Iyy, Ixy):
-    # Находим собственные значения вручную: λ = (T ± sqrt(T² - 4D)) / 2
     T = Ixx + Iyy
     D = Ixx * Iyy - Ixy * Ixy
     discriminant = T * T - 4 * D
@@ -324,7 +373,6 @@ def shi_tomasi_corner_detection(image: np.ndarray, max_corners: int = 100, quali
     else:
         threshold = quality_level * max_resp
 
-    # Находим все точки выше порога
     corner_mask = response >= threshold
     coords = np.argwhere(corner_mask)
     if len(coords) == 0:
@@ -333,7 +381,6 @@ def shi_tomasi_corner_detection(image: np.ndarray, max_corners: int = 100, quali
             result = np.stack([result, result, result], axis=2)
         return result
 
-    # Простая реализация non-max suppression по расстоянию
     selected = []
     for y, x in coords:
         too_close = False
@@ -356,7 +403,6 @@ def shi_tomasi_corner_detection(image: np.ndarray, max_corners: int = 100, quali
 
 
 def cv2_style_circle(img, cx, cy, radius=3, color=(255, 255, 255)):
-    """Простая замена cv2.circle без OpenCV."""
     h, w = img.shape[:2]
     for dy in range(-radius, radius + 1):
         for dx in range(-radius, radius + 1):
@@ -377,9 +423,9 @@ def sobel_edge_detection(image: np.ndarray, add_128: bool = True) -> np.ndarray:
     else:
         gray = image.astype(np.float32)
 
-    gray = gray.astype(np.float32)
-    Gx, Gy = _sobel_gradients(gray)
-    magnitude = np.sqrt(Gx**2 + Gy**2)
+    # Используем градиент гауссиана для лучшей точности
+    Gx, Gy = _gaussian_gradient(gray, sigma=1.0)
+    magnitude = np.hypot(Gx, Gy)
 
     max_mag = magnitude.max()
     if max_mag > 0:
@@ -401,24 +447,16 @@ def non_max_suppression(magnitude, angle):
 
     for i in range(1, h - 1):
         for j in range(1, w - 1):
-            q = 255
-            r = 255
-            # 0 градусов
-            if (0 <= angle[i, j] < 22.5) or (157.5 <= angle[i, j] <= 180):
-                q = magnitude[i, j + 1]
-                r = magnitude[i, j - 1]
-            # 45 градусов
-            elif 22.5 <= angle[i, j] < 67.5:
-                q = magnitude[i + 1, j - 1]
-                r = magnitude[i - 1, j + 1]
-            # 90 градусов
-            elif 67.5 <= angle[i, j] < 112.5:
-                q = magnitude[i + 1, j]
-                r = magnitude[i - 1, j]
-            # 135 градусов
-            elif 112.5 <= angle[i, j] < 157.5:
-                q = magnitude[i - 1, j - 1]
-                r = magnitude[i + 1, j + 1]
+            q = r = 0
+            a = angle[i, j]
+            if (0 <= a < 22.5) or (157.5 <= a <= 180):
+                q, r = magnitude[i, j+1], magnitude[i, j-1]
+            elif 22.5 <= a < 67.5:
+                q, r = magnitude[i+1, j-1], magnitude[i-1, j+1]
+            elif 67.5 <= a < 112.5:
+                q, r = magnitude[i+1, j], magnitude[i-1, j]
+            elif 112.5 <= a < 157.5:
+                q, r = magnitude[i-1, j-1], magnitude[i+1, j+1]
 
             if magnitude[i, j] >= q and magnitude[i, j] >= r:
                 suppressed[i, j] = magnitude[i, j]
@@ -426,9 +464,7 @@ def non_max_suppression(magnitude, angle):
 
 
 def double_threshold(img, low, high):
-    strong = 255
-    weak = 75
-    h, w = img.shape
+    strong, weak = 255, 75
     res = np.zeros_like(img, dtype=np.uint8)
     strong_i, strong_j = np.where(img >= high)
     weak_i, weak_j = np.where((img >= low) & (img < high))
@@ -442,9 +478,8 @@ def hysteresis(img, strong, weak):
     for i in range(1, h - 1):
         for j in range(1, w - 1):
             if img[i, j] == weak:
-                if ((img[i+1, j-1] == strong) or (img[i+1, j] == strong) or (img[i+1, j+1] == strong)
-                    or (img[i, j-1] == strong) or (img[i, j+1] == strong)
-                    or (img[i-1, j-1] == strong) or (img[i-1, j] == strong) or (img[i-1, j+1] == strong)):
+                neighbors = img[i-1:i+2, j-1:j+2]
+                if strong in neighbors:
                     img[i, j] = strong
                 else:
                     img[i, j] = 0
@@ -452,43 +487,28 @@ def hysteresis(img, strong, weak):
 
 
 def canny_edge_detection(image: np.ndarray, low_threshold: int = 50, high_threshold: int = 150) -> np.ndarray:
-    if image is None:
-        raise ValueError("Изображение не может быть None")
-    if len(image.shape) not in [2, 3]:
-        raise ValueError("Изображение должно быть 2D или 3D")
+    if image is None or len(image.shape) not in [2, 3]:
+        raise ValueError("Неверный формат изображения")
 
-    if low_threshold < 0: low_threshold = 50
-    if high_threshold < 0: high_threshold = 150
-    if low_threshold >= high_threshold:
-        high_threshold = low_threshold + 50
+    low_threshold = max(0, low_threshold)
+    high_threshold = max(low_threshold + 1, high_threshold)
 
-    if len(image.shape) == 3:
-        gray = 0.2989 * image[:, :, 0] + 0.5870 * image[:, :, 1] + 0.1140 * image[:, :, 2]
+    if image.ndim == 3:
+        gray = 0.2989 * image[..., 0] + 0.5870 * image[..., 1] + 0.1140 * image[..., 2]
     else:
         gray = image.astype(np.float32)
 
     if gray.shape[0] < 3 or gray.shape[1] < 3:
-        result = image.copy()
-        if len(result.shape) == 2:
-            result = np.stack([result, result, result], axis=2)
+        result = np.stack([image, image, image], axis=-1) if image.ndim == 2 else image.copy()
         return result
 
-    # 1. Гауссово размытие
-    blurred = _manual_convolve2d(gray, _gaussian_kernel(5, 1.0))
-
-    # 2. Градиенты Собеля
-    Gx, Gy = _sobel_gradients(blurred)
-    magnitude = np.sqrt(Gx**2 + Gy**2)
+    # Используем градиент гауссиана напрямую
+    Gx, Gy = _gaussian_gradient(gray, sigma=1.0)
+    magnitude = np.hypot(Gx, Gy)
     angle = np.arctan2(Gy, Gx)
 
-    # 3. Подавление немаксимумов
     suppressed = non_max_suppression(magnitude, angle)
-
-    # 4. Двойной порог
     thresholded, strong, weak = double_threshold(suppressed, low_threshold, high_threshold)
-
-    # 5. Гистерезис
     edges = hysteresis(thresholded, strong, weak)
 
-    result = np.stack([edges, edges, edges], axis=2)
-    return result
+    return np.stack([edges, edges, edges], axis=-1)
