@@ -65,7 +65,6 @@ def custom_colormap_manual(image_np):
 
 
 def _manual_convolve2d(image: np.ndarray, kernel: np.ndarray) -> np.ndarray:
-    """Ручная свёртка 2D без scipy."""
     h, w = image.shape
     k_h, k_w = kernel.shape
     pad_h, pad_w = k_h // 2, k_w // 2
@@ -203,7 +202,6 @@ def get_standard_kernels():
 
 
 def _sobel_gradients(gray: np.ndarray):
-    """Ручной Собель без cv2."""
     h, w = gray.shape
     Gx = np.zeros_like(gray, dtype=np.float32)
     Gy = np.zeros_like(gray, dtype=np.float32)
@@ -221,6 +219,7 @@ def _sobel_gradients(gray: np.ndarray):
 
 
 def harris_corner_detection(image: np.ndarray, k: float = 0.04, threshold: float = 0.01) -> np.ndarray:
+    print(f"Treshold is {threshold}")
     if image is None:
         raise ValueError("Изображение не может быть None")
     if len(image.shape) not in [2, 3]:
@@ -266,15 +265,17 @@ def harris_corner_detection(image: np.ndarray, k: float = 0.04, threshold: float
     result = image.copy()
     if len(result.shape) == 2:
         result = np.stack([result, result, result], axis=2)
-    result[corners] = [255, 0, 0]
+    
+    result = image.copy()
+    if len(result.shape) == 2:
+        result = np.stack([result, result, result], axis=2)
+    
+    corner_coords = np.where(corners)
+    for y, x in zip(corner_coords[0], corner_coords[1]):
+        cv2_style_circle(result, x, y, radius=3, color=(255, 0, 0))  # Красные круги
+    
     return result
 
-
-    for coord in coords:
-        y, x = coord
-        cv2.circle(result, (x, y), 3, (255, 0, 0), -1)
-
-    return result
 
 def _shi_tomasi_response(Ixx, Iyy, Ixy):
     # Находим собственные значения вручную: λ = (T ± sqrt(T² - 4D)) / 2
@@ -356,7 +357,6 @@ def shi_tomasi_corner_detection(image: np.ndarray, max_corners: int = 100, quali
 
 
 def cv2_style_circle(img, cx, cy, radius=3, color=(255, 255, 255)):
-    """Простая замена cv2.circle без OpenCV."""
     h, w = img.shape[:2]
     for dy in range(-radius, radius + 1):
         for dx in range(-radius, radius + 1):

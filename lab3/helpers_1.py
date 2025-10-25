@@ -15,7 +15,7 @@ def _separable_convolve(image: np.ndarray, kernel_1d: np.ndarray) -> np.ndarray:
     pad = k // 2
 
     # Паддинг
-    padded = np.pad(image, pad, mode='reflect')
+    padded = np.pad(image, pad, mode='reflect') # для сохранения данных
     temp = np.zeros((h, w), dtype=np.float32)  # промежуточный без паддинга
     output = np.zeros((h, w), dtype=np.float32)
 
