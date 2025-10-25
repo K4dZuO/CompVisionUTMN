@@ -1,9 +1,9 @@
 import numpy as np
+np.seterr(all="ignore")
 from math import ceil, exp, sqrt
 from matplotlib import pyplot as plt
 from PIL import Image
 from io import BytesIO
-
 
 def get_histogram(image_2d: np.ndarray) -> np.ndarray:
     """Считает гистограмму вручную (без np.histogram)."""
@@ -231,7 +231,7 @@ def harris_corner_detection(image: np.ndarray, k: float = 0.04, threshold: float
         gray = image.astype(np.float32)
 
     gray = gray.astype(np.float32)
-    Ix, Iy = _sobel_gradients(gray)
+    Ix, Iy = _sobel_gradients(gray) # первые производные 
 
     Ixx = Ix * Ix
     Ixy = Ix * Iy
@@ -239,13 +239,12 @@ def harris_corner_detection(image: np.ndarray, k: float = 0.04, threshold: float
 
     # Применяем гауссово размытие вручную (ядро 5x5, sigma=1)
     kernel = _gaussian_kernel(5, 1.0)
-    Ixx = _manual_convolve2d(Ixx, kernel)
+    Ixx = _manual_convolve2d(Ixx, kernel) # 
     Ixy = _manual_convolve2d(Ixy, kernel)
     Iyy = _manual_convolve2d(Iyy, kernel)
 
     det = Ixx * Iyy - Ixy * Ixy
-    trace = Ixx + Iyy
-    R = det - k * (trace ** 2)
+    R = det - k * ((Ixx + Iyy) ** 2)
 
     R = np.maximum(R, 0)
     max_val = R.max()
@@ -277,7 +276,7 @@ def harris_corner_detection(image: np.ndarray, k: float = 0.04, threshold: float
     return result
 
 
-def _shi_tomasi_response(Ixx, Iyy, Ixy):
+def _shi_tomasi_response(Ixx, Iyy, Ixy) -> int:
     # Находим собственные значения вручную: λ = (T ± sqrt(T² - 4D)) / 2
     T = Ixx + Iyy
     D = Ixx * Iyy - Ixy * Ixy
