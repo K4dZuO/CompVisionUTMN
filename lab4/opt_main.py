@@ -1,5 +1,6 @@
 """
-Главное приложение с GUI для сегментации изображений.
+Главное приложение с GUI для сегментации изображений (оптимизированная версия).
+Использует оптимизированные функции из segmentation.core.optimized.
 """
 import sys
 import numpy as np
@@ -14,10 +15,15 @@ import cv2
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
-from segmentation.core.edges import edge_segmentation
-from segmentation.core.threshold_global import (threshold_ptile, threshold_iterative,
-                                                threshold_kmeans, threshold_multilevel)
-from segmentation.core.threshold_adaptive import adaptive_threshold
+# Импортируем оптимизированные функции
+from segmentation.core.optimized import (edge_segmentation_optimized, 
+                                         threshold_iterative_vectorized,
+                                         kmeans_1d_vectorized,
+                                         adaptive_threshold_vectorized,
+                                         smooth_histogram_vectorized)
+from segmentation.core.edges import edge_segmentation  # Для prewitt (если не оптимизирован)
+from segmentation.core.threshold_global import threshold_ptile, threshold_multilevel
+from segmentation.core.threshold_adaptive import adaptive_threshold  # Fallback
 from segmentation.core.hist_utils import (compute_histogram, smooth_histogram, 
                                           find_peaks, find_thresholds_between_peaks)
 
@@ -201,18 +207,15 @@ class HistogramWidget(QWidget):
 
 
 class MainWindow(QMainWindow):
-    """Главное окно приложения."""
+    """Главное окно приложения (оптимизированная версия)."""
     
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Сегментация изображений")
+        self.setWindowTitle("Сегментация изображений (Оптимизированная версия)")
         self.setGeometry(100, 100, 1600, 1000)
         
         self.original_image = None
         self.gray_image = None
-        self.video_capture = None
-        self.current_frame = None
-        self.is_video_mode = False
         
         self.init_ui()
     
@@ -242,24 +245,11 @@ class MainWindow(QMainWindow):
         layout.setSpacing(10)
         layout.setContentsMargins(10, 10, 10, 10)
         
-        # Режим работы
-        mode_group = QGroupBox("Режим работы")
-        mode_layout = QVBoxLayout()
-        mode_layout.setSpacing(8)
-        mode_layout.setContentsMargins(10, 10, 10, 10)
-        self.mode_combo = QComboBox()
-        self.mode_combo.addItems(["Изображение", "Видео"])
-        self.mode_combo.currentTextChanged.connect(self.on_mode_changed)
-        mode_layout.addWidget(QLabel("Режим:"))
-        mode_layout.addWidget(self.mode_combo)
-        mode_group.setLayout(mode_layout)
-        layout.addWidget(mode_group)
-        
-        # Загрузка изображения/видео
-        self.load_btn = QPushButton("Загрузить изображение")
-        self.load_btn.clicked.connect(self.load_image_or_video)
-        self.load_btn.setMinimumHeight(35)
-        layout.addWidget(self.load_btn)
+        # Загрузка изображения
+        load_btn = QPushButton("Загрузить изображение")
+        load_btn.clicked.connect(self.load_image)
+        load_btn.setMinimumHeight(35)
+        layout.addWidget(load_btn)
         
         # Кнопка сброса
         reset_btn = QPushButton("Сброс настроек")
@@ -542,27 +532,6 @@ class MainWindow(QMainWindow):
         panel.setLayout(layout)
         return panel
     
-    def on_mode_changed(self, mode_text):
-        """Обработчик изменения режима работы."""
-        self.is_video_mode = (mode_text == "Видео")
-        if self.is_video_mode:
-            self.load_btn.setText("Загрузить видео")
-            if self.video_capture is not None:
-                self.video_capture.release()
-                self.video_capture = None
-        else:
-            self.load_btn.setText("Загрузить изображение")
-            if self.video_capture is not None:
-                self.video_capture.release()
-                self.video_capture = None
-    
-    def load_image_or_video(self):
-        """Загружает изображение или видео в зависимости от режима."""
-        if self.is_video_mode:
-            self.load_video()
-        else:
-            self.load_image()
-    
     def load_image(self):
         """Загружает изображение."""
         file_path, _ = QFileDialog.getOpenFileName(
@@ -580,191 +549,85 @@ class MainWindow(QMainWindow):
                 # Вычисляем и отображаем гистограмму
                 self.update_histogram_display()
     
-    def load_video(self):
-        """Загружает видео."""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, "Выберите видео", "", 
-            "Video Files (*.mp4 *.avi *.mov *.mkv *.wmv)")
-        
-        if file_path:
-            # Открываем видео через OpenCV
-            self.video_capture = cv2.VideoCapture(file_path)
-            if self.video_capture.isOpened():
-                # Читаем первый кадр
-                ret, frame = self.video_capture.read()
-                if ret:
-                    self.current_frame = frame
-                    self.gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                    self.original_display.set_image(self.gray_image)
-                    self.update_histogram_display()
-            else:
-                print("Ошибка открытия видео")
-    
     def apply_edge_segmentation(self):
-        """Применяет сегментацию по краям."""
-        if self.is_video_mode and self.video_capture is not None:
-            self.process_video_segmentation('edge')
+        """Применяет сегментацию по краям (оптимизированная версия)."""
+        if self.gray_image is None:
+            return
+        
+        operator = self.operator_combo.currentText()
+        threshold = self.edge_threshold_spinbox.value()
+        
+        # Используем оптимизированную версию для sobel и roberts
+        if operator in ['sobel', 'roberts']:
+            result = edge_segmentation_optimized(self.gray_image, operator=operator, T_edge=threshold)
         else:
-            if self.gray_image is None:
-                return
-            
-            operator = self.operator_combo.currentText()
-            threshold = self.edge_threshold_spinbox.value()
-            
+            # Для prewitt используем стандартную версию (если не оптимизирована)
             result = edge_segmentation(self.gray_image, operator=operator, T_edge=threshold)
-            self.result_display.set_image(result)
+        
+        self.result_display.set_image(result)
     
     def apply_global_threshold(self):
-        """Применяет глобальную пороговую сегментацию."""
-        if self.is_video_mode and self.video_capture is not None:
-            self.process_video_segmentation('global')
-        else:
-            if self.gray_image is None:
-                return
+        """Применяет глобальную пороговую сегментацию (оптимизированная версия)."""
+        if self.gray_image is None:
+            return
+        
+        method = self.global_method_combo.currentText()
+        
+        if method == "P-tile":
+            P = self.ptile_spinbox.value()
+            T, result = threshold_ptile(self.gray_image, P=P)
+            print(f"Вычисленный порог: {T:.2f}")
+        elif method == "Последовательные приближения":
+            eps = self.iterative_eps_spinbox.value()
+            # Используем оптимизированную версию
+            T, result = threshold_iterative_vectorized(self.gray_image, eps=eps)
+            print(f"Вычисленный порог: {T:.2f}")
+        elif method == "K-средних":
+            k = self.kmeans_k_spinbox.value()
+            # Используем оптимизированную версию k-means
+            flat = self.gray_image.flatten().astype(np.float64)
+            centroids, labels = kmeans_1d_vectorized(flat, k=k)
             
-            method = self.global_method_combo.currentText()
+            # Сортируем центроиды
+            sorted_indices = np.argsort(centroids)
+            sorted_centroids = centroids[sorted_indices]
             
-            if method == "P-tile":
-                P = self.ptile_spinbox.value()
-                T, result = threshold_ptile(self.gray_image, P=P)
-                print(f"Вычисленный порог: {T:.2f}")
-            elif method == "Последовательные приближения":
-                eps = self.iterative_eps_spinbox.value()
-                # Используем гистограмму, если включено сглаживание или поиск пиков
-                hist = None
-                use_hist = False
-                if hasattr(self, 'hist_smooth_checkbox') and self.hist_smooth_checkbox.isChecked():
-                    hist = compute_histogram(self.gray_image)
-                    window_size = self.hist_smooth_window_spinbox.value()
-                    hist = smooth_histogram(hist, window_size=window_size)
-                    use_hist = True
-                elif hasattr(self, 'hist_peaks_checkbox') and self.hist_peaks_checkbox.isChecked():
-                    hist = compute_histogram(self.gray_image)
-                    use_hist = True
-                T, result = threshold_iterative(self.gray_image, eps=eps, hist=hist, use_hist_init=use_hist)
-                print(f"Вычисленный порог: {T:.2f}")
-            elif method == "K-средних":
-                k = self.kmeans_k_spinbox.value()
-                # Используем гистограмму, если включено сглаживание или поиск пиков
-                hist = None
-                use_hist = False
-                if hasattr(self, 'hist_smooth_checkbox') and self.hist_smooth_checkbox.isChecked():
-                    hist = compute_histogram(self.gray_image)
-                    window_size = self.hist_smooth_window_spinbox.value()
-                    hist = smooth_histogram(hist, window_size=window_size)
-                    use_hist = True
-                elif hasattr(self, 'hist_peaks_checkbox') and self.hist_peaks_checkbox.isChecked():
-                    hist = compute_histogram(self.gray_image)
-                    use_hist = True
-                T, result = threshold_kmeans(self.gray_image, k=k, hist=hist, use_hist_init=use_hist)
-                print(f"Вычисленный порог: {T:.2f}")
-            elif method == "K-средних (многоуровневая)":
-                k = self.kmeans_k_spinbox.value()
-                thresholds, result = threshold_multilevel(self.gray_image, k=k)
-                print(f"Вычисленные пороги: {thresholds}")
+            # Для бинаризации используем средний порог между кластерами
+            if k == 2:
+                T = sorted_centroids[0] + (sorted_centroids[1] - sorted_centroids[0]) / 2.0
+            else:
+                T = sorted_centroids[0] + (sorted_centroids[1] - sorted_centroids[0]) / 2.0
             
-            self.result_display.set_image(result)
+            # Бинаризация
+            binary = np.zeros_like(self.gray_image, dtype=np.uint8)
+            for i in range(k):
+                orig_idx = sorted_indices[i]
+                mask = (labels == orig_idx).reshape(self.gray_image.shape)
+                if i >= k // 2:  # Верхние классы
+                    binary[mask] = 255
+            
+            result = binary
+            print(f"Вычисленный порог: {T:.2f}")
+        elif method == "K-средних (многоуровневая)":
+            k = self.kmeans_k_spinbox.value()
+            thresholds, result = threshold_multilevel(self.gray_image, k=k)
+            print(f"Вычисленные пороги: {thresholds}")
+        
+        self.result_display.set_image(result)
     
     def apply_adaptive_threshold(self):
-        """Применяет адаптивную пороговую сегментацию."""
-        if self.is_video_mode and self.video_capture is not None:
-            self.process_video_segmentation('adaptive')
-        else:
-            if self.gray_image is None:
-                return
-            
-            stat_type = self.adaptive_stat_combo.currentText()
-            window_size = self.adaptive_window_spinbox.value()
-            C = self.adaptive_c_spinbox.value()
-            
-            result = adaptive_threshold(self.gray_image, window_size=window_size, 
-                                       stat_type=stat_type, C=C)
-            self.result_display.set_image(result)
-    
-    def process_video_segmentation(self, method_type: str):
-        """Обрабатывает видео кадр за кадром с выбранным методом сегментации."""
-        if self.video_capture is None or not self.video_capture.isOpened():
+        """Применяет адаптивную пороговую сегментацию (оптимизированная версия)."""
+        if self.gray_image is None:
             return
         
-        # Сбрасываем видео на начало
-        self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        stat_type = self.adaptive_stat_combo.currentText()
+        window_size = self.adaptive_window_spinbox.value()
+        C = self.adaptive_c_spinbox.value()
         
-        # Получаем параметры видео
-        fps = int(self.video_capture.get(cv2.CAP_PROP_FPS))
-        width = int(self.video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(self.video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        
-        # Создаём VideoWriter для сохранения результата
-        output_path, _ = QFileDialog.getSaveFileName(
-            self, "Сохранить обработанное видео", "", 
-            "Video Files (*.mp4)")
-        
-        if not output_path:
-            return
-        
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        out = cv2.VideoWriter(output_path, fourcc, fps, (width, height), False)
-        
-        frame_count = 0
-        total_frames = int(self.video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
-        
-        while True:
-            ret, frame = self.video_capture.read()
-            if not ret:
-                break
-            
-            frame_count += 1
-            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            
-            # Применяем выбранный метод сегментации
-            if method_type == 'edge':
-                operator = self.operator_combo.currentText()
-                threshold = self.edge_threshold_spinbox.value()
-                result_frame = edge_segmentation(gray_frame, operator=operator, T_edge=threshold)
-            elif method_type == 'global':
-                method = self.global_method_combo.currentText()
-                if method == "P-tile":
-                    P = self.ptile_spinbox.value()
-                    _, result_frame = threshold_ptile(gray_frame, P=P)
-                elif method == "Последовательные приближения":
-                    eps = self.iterative_eps_spinbox.value()
-                    _, result_frame = threshold_iterative(gray_frame, eps=eps)
-                elif method == "K-средних":
-                    k = self.kmeans_k_spinbox.value()
-                    _, result_frame = threshold_kmeans(gray_frame, k=k)
-                elif method == "K-средних (многоуровневая)":
-                    k = self.kmeans_k_spinbox.value()
-                    _, result_frame = threshold_multilevel(gray_frame, k=k)
-                else:
-                    result_frame = gray_frame
-            elif method_type == 'adaptive':
-                stat_type = self.adaptive_stat_combo.currentText()
-                window_size = self.adaptive_window_spinbox.value()
-                C = self.adaptive_c_spinbox.value()
-                result_frame = adaptive_threshold(gray_frame, window_size=window_size, 
-                                                stat_type=stat_type, C=C)
-            else:
-                result_frame = gray_frame
-            
-            # Записываем кадр
-            out.write(result_frame)
-            
-            # Показываем прогресс (каждый 10-й кадр)
-            if frame_count % 10 == 0:
-                self.original_display.set_image(gray_frame)
-                self.result_display.set_image(result_frame)
-                self.update()
-                print(f"Обработано кадров: {frame_count}/{total_frames}")
-        
-        out.release()
-        print(f"Видео обработано и сохранено: {output_path}")
-        
-        # Показываем последний кадр
-        self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, total_frames - 1)
-        ret, frame = self.video_capture.read()
-        if ret:
-            self.gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            self.original_display.set_image(self.gray_image)
+        # Используем оптимизированную версию
+        result = adaptive_threshold_vectorized(self.gray_image, window_size=window_size, 
+                                             stat_type=stat_type, C=C)
+        self.result_display.set_image(result)
     
     def update_global_params_visibility(self):
         """Обновляет видимость групп параметров в зависимости от выбранного метода."""
@@ -781,10 +644,10 @@ class MainWindow(QMainWindow):
         
         hist = compute_histogram(self.gray_image)
         
-        # Сглаживание
+        # Сглаживание (используем оптимизированную версию)
         if hasattr(self, 'hist_smooth_checkbox') and self.hist_smooth_checkbox.isChecked():
             window_size = self.hist_smooth_window_spinbox.value()
-            hist = smooth_histogram(hist, window_size=window_size)
+            hist = smooth_histogram_vectorized(hist, window_size=window_size)
         
         # Отображаем гистограмму
         self.histogram_widget.plot_histogram(hist, "Гистограмма")

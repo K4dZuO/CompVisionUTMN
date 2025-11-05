@@ -30,7 +30,8 @@ def threshold_ptile(image: np.ndarray, P: float = 30.0):
     return T, binary
 
 
-def threshold_iterative(image: np.ndarray, eps: float = 0.5, max_iter: int = 50):
+def threshold_iterative(image: np.ndarray, eps: float = 0.5, max_iter: int = 50,
+                        hist: np.ndarray = None, use_hist_init: bool = False):
     """
     Глобальная пороговая сегментация методом последовательных приближений.
     
@@ -38,6 +39,8 @@ def threshold_iterative(image: np.ndarray, eps: float = 0.5, max_iter: int = 50)
         image: np.ndarray — входное изображение в оттенках серого [0,255]
         eps: float — критерий останова
         max_iter: int — максимум итераций
+        hist: np.ndarray — гистограмма для улучшения начального приближения (опционально)
+        use_hist_init: bool — использовать пики гистограммы для инициализации
     
     Возвращает:
         tuple[T, binary_mask] — порог и бинарная маска (0 и 255)
@@ -46,7 +49,18 @@ def threshold_iterative(image: np.ndarray, eps: float = 0.5, max_iter: int = 50)
     image_float = image.astype(np.float64)
     
     # Начальное приближение
-    T_old = (np.min(image_float) + np.max(image_float)) / 2.0
+    if use_hist_init and hist is not None:
+        # Используем пики гистограммы для лучшей инициализации
+        from .hist_utils import find_peaks, find_thresholds_between_peaks
+        peaks = find_peaks(hist)
+        if len(peaks) >= 2:
+            # Используем среднее между двумя основными пиками как начальный порог
+            sorted_peaks = np.sort(peaks)
+            T_old = float((sorted_peaks[0] + sorted_peaks[-1]) / 2.0)
+        else:
+            T_old = (np.min(image_float) + np.max(image_float)) / 2.0
+    else:
+        T_old = (np.min(image_float) + np.max(image_float)) / 2.0
     T_new = T_old  # Инициализируем для случая, если цикл не выполнится
     
     for iteration in range(max_iter):
@@ -80,7 +94,8 @@ def threshold_iterative(image: np.ndarray, eps: float = 0.5, max_iter: int = 50)
     return T, binary
 
 
-def kmeans_1d(data: np.ndarray, k: int = 2, max_iter: int = 100, eps: float = 0.1):
+def kmeans_1d(data: np.ndarray, k: int = 2, max_iter: int = 100, eps: float = 0.1,
+              hist: np.ndarray = None, use_hist_init: bool = False):
     """
     K-средних для 1D-кластеризации значений яркости.
     
@@ -89,15 +104,50 @@ def kmeans_1d(data: np.ndarray, k: int = 2, max_iter: int = 100, eps: float = 0.
         k: int — количество кластеров
         max_iter: int — максимум итераций
         eps: float — критерий останова
+        hist: np.ndarray — гистограмма для улучшения инициализации (опционально)
+        use_hist_init: bool — использовать пики гистограммы для инициализации центроидов
     
     Возвращает:
         tuple: (centroids, labels) — центроиды и метки кластеров
     """
     n = len(data)
     
-    # Инициализация центроидов (равномерно распределённые)
+    # Инициализация центроидов
     min_val, max_val = np.min(data), np.max(data)
-    centroids = np.linspace(min_val, max_val, k)
+    if use_hist_init and hist is not None:
+        # Используем пики гистограммы для инициализации
+        from .hist_utils import find_peaks
+        peaks = find_peaks(hist)
+        if len(peaks) >= k:
+            # Выбираем k наиболее выраженных пиков
+            # Сортируем по значению гистограммы (высоте пика)
+            peak_values = hist[peaks]
+            top_k_indices = np.argsort(peak_values)[-k:]
+            centroids = peaks[top_k_indices].astype(np.float64)
+            # Сортируем по значению яркости
+            centroids = np.sort(centroids)
+        elif len(peaks) > 0:
+            # Если пиков меньше k, дополняем равномерно распределёнными
+            centroids = np.zeros(k)
+            centroids[:len(peaks)] = peaks.astype(np.float64)
+            # Дополняем равномерно распределёнными между оставшимися интервалами
+            if len(peaks) < k:
+                remaining = k - len(peaks)
+                sorted_peaks = np.sort(peaks)
+                intervals = []
+                intervals.append((min_val, sorted_peaks[0]))
+                for i in range(len(sorted_peaks) - 1):
+                    intervals.append((sorted_peaks[i], sorted_peaks[i+1]))
+                intervals.append((sorted_peaks[-1], max_val))
+                # Равномерно распределяем оставшиеся центроиды
+                for i, (start, end) in enumerate(intervals):
+                    if i < remaining:
+                        centroids[len(peaks) + i] = start + (end - start) * (i + 1) / (remaining + 1)
+            centroids = np.sort(centroids)
+        else:
+            centroids = np.linspace(min_val, max_val, k)
+    else:
+        centroids = np.linspace(min_val, max_val, k)
     
     labels = np.zeros(n, dtype=np.int32)
     
@@ -125,19 +175,22 @@ def kmeans_1d(data: np.ndarray, k: int = 2, max_iter: int = 100, eps: float = 0.
     return centroids, labels
 
 
-def threshold_kmeans(image: np.ndarray, k: int = 2):
+def threshold_kmeans(image: np.ndarray, k: int = 2, hist: np.ndarray = None, 
+                    use_hist_init: bool = False):
     """
     Глобальная пороговая сегментация методом K-средних.
     
     Параметры:
         image: np.ndarray — входное изображение в оттенках серого [0,255]
         k: int — количество кластеров
+        hist: np.ndarray — гистограмма для улучшения инициализации (опционально)
+        use_hist_init: bool — использовать пики гистограммы для инициализации
     
     Возвращает:
         tuple[T, binary_mask] — порог и бинарная маска (0 и 255)
     """
     flat = image.flatten().astype(np.float64)
-    centroids, labels = kmeans_1d(flat, k=k)
+    centroids, labels = kmeans_1d(flat, k=k, hist=hist, use_hist_init=use_hist_init)
     
     # Сортируем центроиды
     sorted_indices = np.argsort(centroids)
