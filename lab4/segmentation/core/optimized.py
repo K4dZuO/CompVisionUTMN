@@ -300,15 +300,13 @@ def adaptive_threshold_vectorized(image: np.ndarray, window_size: int = 15,
     # Padding
     padded = np.pad(image.astype(dtype), half_window, mode='edge')
     
-    # Векторизованное вычисление локальной статистики
+    # Векторизованное вычисление локальной статистики полностью ручная реализация
     if stat_type == 'mean':
-        # Используем uniform_filter для быстрого вычисления среднего
-        from scipy.ndimage import uniform_filter
+        # Используем sliding_window_view для векторизованного вычисления среднего
         try:
-            local_stats = uniform_filter(padded.astype(np.float64), size=window_size, mode='constant')
-            local_stats = local_stats[half_window:-half_window, half_window:-half_window]
-            local_stats = local_stats.astype(dtype)
-        except ImportError:
+            windows = np.lib.stride_tricks.sliding_window_view(padded, (window_size, window_size))
+            local_stats = np.mean(windows, axis=(2, 3)).astype(dtype)
+        except (AttributeError, ValueError):
             # Fallback на ручную реализацию
             local_stats = np.zeros_like(image, dtype=dtype)
             for i in range(h):
@@ -316,12 +314,12 @@ def adaptive_threshold_vectorized(image: np.ndarray, window_size: int = 15,
                     window = padded[i:i+window_size, j:j+window_size]
                     local_stats[i, j] = np.mean(window)
     elif stat_type == 'median':
-        from scipy.ndimage import median_filter
+        # Для медианы используем sliding_window_view с векторизованным вычислением
         try:
-            local_stats = median_filter(padded.astype(np.float64), size=window_size, mode='constant')
-            local_stats = local_stats[half_window:-half_window, half_window:-half_window]
-            local_stats = local_stats.astype(dtype)
-        except ImportError:
+            windows = np.lib.stride_tricks.sliding_window_view(padded, (window_size, window_size))
+            # Медиана для каждого окна
+            local_stats = np.median(windows, axis=(2, 3)).astype(dtype)
+        except (AttributeError, ValueError):
             # Fallback на ручную реализацию
             local_stats = np.zeros_like(image, dtype=dtype)
             for i in range(h):
@@ -329,15 +327,13 @@ def adaptive_threshold_vectorized(image: np.ndarray, window_size: int = 15,
                     window = padded[i:i+window_size, j:j+window_size]
                     local_stats[i, j] = np.median(window)
     elif stat_type == 'avg_min_max':
-        # Используем максимальный и минимальный фильтры
-        from scipy.ndimage import maximum_filter, minimum_filter
+        # Используем sliding_window_view для векторизованного вычисления min/max
         try:
-            max_vals = maximum_filter(padded.astype(np.float64), size=window_size, mode='constant')
-            min_vals = minimum_filter(padded.astype(np.float64), size=window_size, mode='constant')
-            max_vals = max_vals[half_window:-half_window, half_window:-half_window]
-            min_vals = min_vals[half_window:-half_window, half_window:-half_window]
+            windows = np.lib.stride_tricks.sliding_window_view(padded, (window_size, window_size))
+            max_vals = np.max(windows, axis=(2, 3))
+            min_vals = np.min(windows, axis=(2, 3))
             local_stats = ((max_vals + min_vals) / 2.0).astype(dtype)
-        except ImportError:
+        except (AttributeError, ValueError):
             # Fallback на ручную реализацию
             local_stats = np.zeros_like(image, dtype=dtype)
             for i in range(h):
