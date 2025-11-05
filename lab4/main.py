@@ -20,6 +20,7 @@ from segmentation.core.threshold_global import (threshold_ptile, threshold_itera
 from segmentation.core.threshold_adaptive import adaptive_threshold
 from segmentation.core.hist_utils import (compute_histogram, smooth_histogram, 
                                           find_peaks, find_thresholds_between_peaks)
+from segmentation.video.video_processor import process_video_opencv
 
 
 class ImageDisplayWidget(QWidget):
@@ -111,6 +112,7 @@ class MainWindow(QMainWindow):
         self.video_capture = None
         self.current_frame = None
         self.is_video_mode = False
+        self.current_video_path = None
         
         self.init_ui()
     
@@ -150,6 +152,16 @@ class MainWindow(QMainWindow):
         self.mode_combo.currentTextChanged.connect(self.on_mode_changed)
         mode_layout.addWidget(QLabel("Режим:"))
         mode_layout.addWidget(self.mode_combo)
+        
+        # Для видео: выбор между ручными и готовыми методами
+        self.video_method_combo = QComboBox()
+        self.video_method_combo.addItems(["Ручные методы", "OpenCV методы"])
+        self.video_method_combo.setEnabled(False)
+        self.mode_combo.currentTextChanged.connect(
+            lambda text: self.video_method_combo.setEnabled(text == "Видео"))
+        mode_layout.addWidget(QLabel("Метод обработки видео:"))
+        mode_layout.addWidget(self.video_method_combo)
+        
         mode_group.setLayout(mode_layout)
         layout.addWidget(mode_group)
         
@@ -486,6 +498,9 @@ class MainWindow(QMainWindow):
             "Video Files (*.mp4 *.avi *.mov *.mkv *.wmv)")
         
         if file_path:
+            # Сохраняем путь к видео для использования в OpenCV методах
+            self.current_video_path = file_path
+            
             # Открываем видео через OpenCV
             self.video_capture = cv2.VideoCapture(file_path)
             if self.video_capture.isOpened():
@@ -585,6 +600,19 @@ class MainWindow(QMainWindow):
         if self.video_capture is None or not self.video_capture.isOpened():
             return
         
+        # Проверяем, какой метод обработки выбран
+        use_opencv = (hasattr(self, 'video_method_combo') and 
+                     self.video_method_combo.currentText() == "OpenCV методы")
+        
+        if use_opencv:
+            # Используем готовые методы OpenCV
+            self.process_video_opencv_methods(method_type)
+        else:
+            # Используем ручные методы
+            self.process_video_manual_methods(method_type)
+    
+    def process_video_manual_methods(self, method_type: str):
+        """Обрабатывает видео используя ручные методы."""
         # Сбрасываем видео на начало
         self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
         
@@ -615,7 +643,7 @@ class MainWindow(QMainWindow):
             frame_count += 1
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             
-            # Применяем выбранный метод сегментации
+            # Применяем выбранный метод сегментации (ручные методы)
             if method_type == 'edge':
                 operator = self.operator_combo.currentText()
                 threshold = self.edge_threshold_spinbox.value()
@@ -656,7 +684,7 @@ class MainWindow(QMainWindow):
                 print(f"Обработано кадров: {frame_count}/{total_frames}")
         
         out.release()
-        print(f"Видео обработано и сохранено: {output_path}")
+        print(f"Видео обработано и сохранено (ручные методы): {output_path}")
         
         # Показываем последний кадр
         self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, total_frames - 1)
@@ -664,6 +692,90 @@ class MainWindow(QMainWindow):
         if ret:
             self.gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             self.original_display.set_image(self.gray_image)
+    
+    def process_video_opencv_methods(self, method_type: str):
+        """Обрабатывает видео используя готовые методы OpenCV."""
+        # Получаем путь к видео
+        video_path = None  # Нужно сохранять путь при загрузке
+        if hasattr(self, 'current_video_path'):
+            video_path = self.current_video_path
+        else:
+            # Если путь не сохранён, запрашиваем его
+            video_path, _ = QFileDialog.getOpenFileName(
+                self, "Выберите видео для обработки", "", 
+                "Video Files (*.mp4 *.avi *.mov *.mkv *.wmv)")
+            if not video_path:
+                return
+        
+        # Определяем путь для сохранения
+        output_path, _ = QFileDialog.getSaveFileName(
+            self, "Сохранить обработанное видео", "", 
+            "Video Files (*.mp4)")
+        
+        if not output_path:
+            return
+        
+        # Подготавливаем параметры метода
+        method_params = {}
+        
+        if method_type == 'edge':
+            operator = self.operator_combo.currentText()
+            threshold = self.edge_threshold_spinbox.value()
+            # Маппинг операторов на OpenCV
+            if operator == 'sobel':
+                method_params = {'operator': 'sobel', 'threshold1': threshold}
+            elif operator == 'prewitt':
+                method_params = {'operator': 'sobel', 'threshold1': threshold}  # Prewitt нет в OpenCV
+            elif operator == 'roberts':
+                method_params = {'operator': 'canny', 'threshold1': threshold, 'threshold2': threshold * 2}
+            else:
+                method_params = {'operator': 'canny', 'threshold1': threshold, 'threshold2': threshold * 2}
+        
+        elif method_type == 'global':
+            method = self.global_method_combo.currentText()
+            if method == "P-tile":
+                # Для P-tile используем ручной порог
+                P = self.ptile_spinbox.value()
+                # Вычисляем порог из первого кадра для примера
+                method_params = {'method': 'manual', 'threshold_value': 127.0}
+            elif method == "Последовательные приближения":
+                method_params = {'method': 'mean'}
+            else:
+                method_params = {'method': 'otsu'}  # Otsu как аналог k-means
+        
+        elif method_type == 'adaptive':
+            stat_type = self.adaptive_stat_combo.currentText()
+            window_size = self.adaptive_window_spinbox.value()
+            C = self.adaptive_c_spinbox.value()
+            # Маппинг типов статистики
+            if stat_type == 'mean':
+                method_params = {'method': 'mean', 'block_size': window_size, 'C': C}
+            elif stat_type == 'median':
+                method_params = {'method': 'gaussian', 'block_size': window_size, 'C': C}
+            else:  # avg_min_max
+                method_params = {'method': 'mean', 'block_size': window_size, 'C': C}
+        
+        # Функция обратного вызова для прогресса
+        def progress_callback(frame_count, total_frames, result_frame):
+            if frame_count % 10 == 0:
+                # Открываем временный capture для чтения текущего кадра
+                temp_cap = cv2.VideoCapture(video_path)
+                temp_cap.set(cv2.CAP_PROP_POS_FRAMES, frame_count - 1)
+                ret, frame = temp_cap.read()
+                temp_cap.release()
+                if ret:
+                    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                    self.original_display.set_image(gray_frame)
+                self.result_display.set_image(result_frame)
+                self.update()
+                print(f"Обработано кадров: {frame_count}/{total_frames}")
+        
+        # Обрабатываем видео
+        success = process_video_opencv(video_path, output_path, method_type, 
+                                       method_params, progress_callback)
+        
+        if success:
+            print(f"Видео обработано и сохранено (OpenCV методы): {output_path}")
     
     def update_global_params_visibility(self):
         """Обновляет видимость групп параметров в зависимости от выбранного метода."""
