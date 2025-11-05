@@ -22,13 +22,6 @@ def compute_histogram(image: np.ndarray, bins: int = 256) -> np.ndarray:
 def smooth_histogram(hist: np.ndarray, window_size: int = 5) -> np.ndarray:
     """
     Сглаживает гистограмму через свёртку с окном.
-    
-    Параметры:
-        hist: np.ndarray — исходная гистограмма
-        window_size: int — размер окна для свёртки (должен быть нечётным)
-    
-    Возвращает:
-        np.ndarray — сглаженная гистограмма
     """
     if window_size % 2 == 0:
         window_size += 1

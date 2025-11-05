@@ -23,154 +23,52 @@ from segmentation.core.hist_utils import (compute_histogram, smooth_histogram,
 
 
 class ImageDisplayWidget(QWidget):
-    """Виджет для отображения изображения."""
-    
-    def __init__(self, title="Image", parent_panel=None):
+    def __init__(self, title="Image"):
         super().__init__()
-        self.parent_panel = parent_panel  # Ссылка на родительскую панель для синхронизации
-        self.sibling_display = None  # Ссылка на другое изображение для синхронизации
         self.layout = QVBoxLayout()
-        self.layout.setSpacing(10)
-        self.layout.setContentsMargins(5, 5, 5, 5)
-        self.label = QLabel(title)
-        self.label.setAlignment(Qt.AlignCenter)
-        self.image_label = QLabel()
-        self.image_label.setAlignment(Qt.AlignCenter)
-        self.image_label.setMinimumSize(500, 200)  # Уменьшаем минимальный размер
-        self.image_label.setScaledContents(False)  # Отключаем автоматическое масштабирование
-        # Разрешаем виджету расширяться
-        self.image_label.setSizePolicy(
-            QSizePolicy.Expanding, 
-            QSizePolicy.Expanding
-        )
-        self.layout.addWidget(self.label)
-        self.layout.addWidget(self.image_label, 1)  # Добавляем stretch factor
-        self.setLayout(self.layout)
         
-        # Сохраняем исходное изображение для пересчета при изменении размера
+        # Подпись
+        self.label = QLabel(title)
+        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.image_label = QLabel()
+        self.image_label.setFixedSize(500, 500)
+        self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Компоновка
+        self.layout.addWidget(self.label)
+        self.layout.addWidget(self.image_label)
+        self.setLayout(self.layout)
+
         self.original_pixmap = None
-    
+
     def set_image(self, image: np.ndarray):
-        """Устанавливает изображение для отображения."""
         if image is None:
             self.image_label.clear()
-            self.original_pixmap = None
             return
-        
-        # Конвертируем в uint8
+
+        # Конвертация в uint8
         if image.dtype != np.uint8:
-            if image.max() <= 1.0:
-                image = (image * 255).astype(np.uint8)
-            else:
-                image = np.clip(image, 0, 255).astype(np.uint8)
-        
-        # Конвертируем в QImage
-        h, w = image.shape
-        if len(image.shape) == 2:
-            qimage = QImage(image.data, w, h, w, QImage.Format_Grayscale8)
-        else:
+            image = (image * 255).astype(np.uint8) if image.max() <= 1.0 else np.clip(image, 0, 255).astype(np.uint8)
+
+        # В RGB или Grayscale
+        h, w = image.shape[:2]
+        if len(image.shape) == 3:
             qimage = QImage(image.data, w, h, w * 3, QImage.Format_RGB888)
-        
-        # Сохраняем исходный pixmap
-        self.original_pixmap = QPixmap.fromImage(qimage)
-        
-        # Масштабируем изображение
-        if self.parent_panel is not None:
-            self._scale_image_synchronized()
         else:
-            self._scale_image()
-    
-    def _scale_image(self):
-        """Масштабирует изображение под доступное пространство."""
-        if self.original_pixmap is None:
-            return
-        
-        # Получаем доступный размер с учетом отступов
-        available_size = self.image_label.size()
-        if available_size.width() <= 0 or available_size.height() <= 0:
-            # Если размер еще не определен, устанавливаем минимальный размер
-            return
-        
-        # Масштабируем с сохранением пропорций, чтобы изображение полностью помещалось
-        scaled_pixmap = self.original_pixmap.scaled(
-            available_size, 
-            Qt.KeepAspectRatio, 
+            qimage = QImage(image.data, w, h, w, QImage.Format_Grayscale8)
+
+        pixmap = QPixmap.fromImage(qimage)
+
+        # Масштабируем с сохранением пропорций, чтобы вписать в 800x800
+        scaled = pixmap.scaled(
+            500, 500,
+            Qt.KeepAspectRatio,
             Qt.SmoothTransformation
         )
-        self.image_label.setPixmap(scaled_pixmap)
-    
-    def _scale_image_synchronized(self):
-        """Масштабирует изображение с учетом синхронизации с другими виджетами."""
-        if self.original_pixmap is None:
-            return
+
+        self.image_label.setPixmap(scaled)
         
-        # Если есть родительская панель, вычисляем общий доступный размер
-        if self.parent_panel is not None:
-            # Получаем размер панели
-            panel_size = self.parent_panel.size()
-            # Вычисляем доступное пространство для изображений (исключая гистограмму)
-            # Приблизительно: общая высота минус отступы и гистограмма
-            available_height = panel_size.height() - 380 - 120  # 380 для гистограммы, 120 для отступов и заголовков
-            available_width = panel_size.width() - 30  # 30 для отступов
-            
-            # Делим высоту поровну между двумя изображениями
-            single_image_height = max(200, available_height // 2)
-            
-            # Получаем реальный размер label'а
-            available_size = self.image_label.size()
-            if available_size.width() <= 0 or available_size.height() <= 0:
-                return
-            
-            # Используем ширину label'а и вычисляем высоту с учетом пропорций
-            final_width = min(available_size.width(), available_width)
-            
-            # Вычисляем максимальную высоту с учетом пропорций изображения
-            pixmap_aspect = self.original_pixmap.width() / self.original_pixmap.height()
-            max_height_by_width = final_width / pixmap_aspect
-            
-            # Выбираем минимальную из доступных высот
-            final_height = min(available_size.height(), single_image_height, max_height_by_width)
-            
-            # Масштабируем с учетом ограничений
-            scaled_pixmap = self.original_pixmap.scaled(
-                int(final_width), int(final_height),
-                Qt.KeepAspectRatio, 
-                Qt.SmoothTransformation
-            )
-            self.image_label.setPixmap(scaled_pixmap)
-            
-            # Если есть "братский" виджет, пересчитываем и его
-            if self.sibling_display is not None and self.sibling_display.original_pixmap is not None:
-                from PySide6.QtCore import QTimer
-                QTimer.singleShot(5, self.sibling_display._scale_image_synchronized)
-        else:
-            # Стандартное масштабирование
-            self._scale_image()
-    
-    def showEvent(self, event):
-        """Переопределяем для правильного масштабирования при первом показе."""
-        super().showEvent(event)
-        if self.original_pixmap is not None:
-            # Пересчитываем масштаб после того, как виджет стал видимым
-            from PySide6.QtCore import QTimer
-            if self.parent_panel is not None:
-                QTimer.singleShot(10, self._scale_image_synchronized)
-            else:
-                QTimer.singleShot(10, self._scale_image)
-    
-    def resizeEvent(self, event):
-        """Переопределяем для автоматического пересчета масштаба при изменении размера."""
-        super().resizeEvent(event)
-        # Пересчитываем масштаб после изменения размера
-        if self.original_pixmap is not None:
-            # Используем QTimer.singleShot для отложенного пересчета после завершения изменения размера
-            from PySide6.QtCore import QTimer
-            if self.parent_panel is not None:
-                QTimer.singleShot(10, self._scale_image_synchronized)
-            else:
-                QTimer.singleShot(10, self._scale_image)
-
-
 class HistogramWidget(QWidget):
     """Виджет для отображения гистограммы."""
     
@@ -514,21 +412,22 @@ class MainWindow(QMainWindow):
         """Создаёт панель отображения."""
         panel = QWidget()
         layout = QVBoxLayout()
-        layout.setSpacing(15)
-        layout.setContentsMargins(10, 10, 10, 10)
         
-        # Оригинальное изображение - равный stretch factor
-        self.original_display = ImageDisplayWidget("Исходное изображение", panel)
-        layout.addWidget(self.original_display, 1)  # Stretch factor = 1
+        layout.setSpacing(15)
+        images_row = QHBoxLayout()
+        images_row.setSpacing(20)
+
+        self.original_display = ImageDisplayWidget("Оригинальное из-ие")
+        self.result_display = ImageDisplayWidget("Обработанное из-ие")
+
+        # Добавляем оба изображения в горизонтальный ряд
+        images_row.addWidget(self.original_display)  # stretch = 1
+        images_row.addWidget(self.result_display)  # stretch = 1
+        layout.addLayout(images_row)
         
         # Гистограмма - фиксированный размер
         self.histogram_widget = HistogramWidget()
         layout.addWidget(self.histogram_widget, 0)  # Stretch factor = 0 (фиксированный)
-        
-        # Результат - равный stretch factor
-        self.result_display = ImageDisplayWidget("Результат сегментации", panel)
-        layout.addWidget(self.result_display, 1)  # Stretch factor = 1
-        
         # Сохраняем ссылку на панель для синхронизации масштабирования
         self.display_panel = panel
         
