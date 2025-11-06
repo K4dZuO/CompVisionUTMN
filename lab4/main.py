@@ -28,15 +28,11 @@ class ImageDisplayWidget(QWidget):
         super().__init__()
         self.layout = QVBoxLayout()
         
-        # Подпись
         self.label = QLabel(title)
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
         self.image_label = QLabel()
         self.image_label.setFixedSize(500, 500)
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        # Компоновка
         self.layout.addWidget(self.label)
         self.layout.addWidget(self.image_label)
         self.setLayout(self.layout)
@@ -48,20 +44,19 @@ class ImageDisplayWidget(QWidget):
             self.image_label.clear()
             return
 
-        # Конвертация в uint8
         if image.dtype != np.uint8:
             image = (image * 255).astype(np.uint8) if image.max() <= 1.0 else np.clip(image, 0, 255).astype(np.uint8)
 
         # В RGB или Grayscale
         h, w = image.shape[:2]
         if len(image.shape) == 3:
-            qimage = QImage(image.data, w, h, w * 3, QImage.Format_RGB888)
+            qimage = QImage(image.data, w, h, w * 3, QImage.Format_RGB888)# 4 параметр - шаг строки
         else:
             qimage = QImage(image.data, w, h, w, QImage.Format_Grayscale8)
 
         pixmap = QPixmap.fromImage(qimage)
 
-        # Масштабируем с сохранением пропорций, чтобы вписать в 800x800
+        # Масштабируем с сохранением пропорций
         scaled = pixmap.scaled(
             500, 500,
             Qt.KeepAspectRatio,
@@ -81,7 +76,7 @@ class HistogramWidget(QWidget):
         # Увеличиваем размер фигуры для лучшей видимости
         self.figure = plt.Figure(figsize=(8, 4))
         self.figure.subplots_adjust(left=0.1, right=0.95, top=0.9, bottom=0.15)
-        self.canvas = FigureCanvas(self.figure)
+        self.canvas = FigureCanvas(self.figure) # хост
         self.canvas.setMinimumSize(600, 350)
         self.layout.addWidget(self.canvas)
         self.setLayout(self.layout)
@@ -94,7 +89,6 @@ class HistogramWidget(QWidget):
         ax.set_title(title, fontsize=12, pad=10)
         ax.set_xlabel('Интенсивность', fontsize=10)
         ax.set_ylabel('Частота', fontsize=10)
-        # Убеждаемся, что подписи не обрезаются
         self.figure.tight_layout()
         self.canvas.draw()
 
@@ -600,15 +594,12 @@ class MainWindow(QMainWindow):
         if self.video_capture is None or not self.video_capture.isOpened():
             return
         
-        # Проверяем, какой метод обработки выбран
         use_opencv = (hasattr(self, 'video_method_combo') and 
                      self.video_method_combo.currentText() == "OpenCV методы")
         
         if use_opencv:
-            # Используем готовые методы OpenCV
             self.process_video_opencv_methods(method_type)
         else:
-            # Используем ручные методы
             self.process_video_manual_methods(method_type)
     
     def process_video_manual_methods(self, method_type: str):
