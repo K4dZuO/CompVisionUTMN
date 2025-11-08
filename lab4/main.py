@@ -76,7 +76,7 @@ class HistogramWidget(QWidget):
         # Увеличиваем размер фигуры для лучшей видимости
         self.figure = plt.Figure(figsize=(8, 4))
         self.figure.subplots_adjust(left=0.1, right=0.95, top=0.9, bottom=0.15)
-        self.canvas = FigureCanvas(self.figure) # хост
+        self.canvas = FigureCanvas(self.figure) # хоkст
         self.canvas.setMinimumSize(600, 350)
         self.layout.addWidget(self.canvas)
         self.setLayout(self.layout)

@@ -7,25 +7,18 @@ import numpy as np
 def threshold_ptile(image: np.ndarray, P: float = 30.0):
     """
     Метод площади (P-tile): вычисляет порог так, чтобы заданный процент пикселей оказался выше порога.
-    
-    Параметры:
-        image: np.ndarray — входное изображение в оттенках серого [0,255]
-        P: float — процент пикселей, которые должны быть выше порога (0-100)
-    
-    Возвращает:
-        tuple[T, binary_mask] — порог и бинарная маска (0 и 255)
     """
-    # Вычисляем порог
-    flat = image.flatten()
-    sorted_values = np.sort(flat)
-    n = len(sorted_values)
-    idx = int(n * (1 - P / 100.0))
+    flat = image.flatten() # порог 
+    print(flat.shape)
+    print(flat.size)
+    sorted_values = np.sort(flat) # сортируем
+    n = len(sorted_values) 
+    idx = int(n * (1 - P / 100.0)) # получаем индекс границы
     idx = max(0, min(idx, n - 1))
-    T = sorted_values[idx]
+    T = sorted_values[idx] 
     
-    # Бинаризация
-    binary = np.zeros_like(image, dtype=np.uint8)
-    binary[image > T] = 255
+    binary = np.zeros_like(image, dtype=np.uint8) 
+    binary[image > T] = 255 
     
     return T, binary
 
