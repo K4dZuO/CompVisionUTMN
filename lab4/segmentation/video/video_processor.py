@@ -133,7 +133,7 @@ def process_video_frame_adaptive_threshold_opencv(frame: np.ndarray,
                                        cv2.THRESH_BINARY, block_size, C)
         return binary
     elif method.lower() == 'gaussian':
-        # Адаптивный порог на основе взвешенного среднего (Gaussian)
+        # Адаптивный порог на основе взвешенного среднего (Gaussian) вместо среднего и минимакса
         binary = cv2.adaptiveThreshold(gray_frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                                        cv2.THRESH_BINARY, block_size, C)
         return binary

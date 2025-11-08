@@ -14,7 +14,7 @@ def threshold_ptile(image: np.ndarray, P: float = 30.0):
     sorted_values = np.sort(flat) # сортируем
     n = len(sorted_values) 
     idx = int(n * (1 - P / 100.0)) # получаем индекс границы
-    idx = max(0, min(idx, n - 1))
+    idx = max(0, min(idx, n - 1)) 
     T = sorted_values[idx] 
     
     binary = np.zeros_like(image, dtype=np.uint8) 
@@ -30,7 +30,7 @@ def threshold_iterative(image: np.ndarray, eps: float = 0.5, max_iter: int = 50,
     
     Параметры:
         image: np.ndarray — входное изображение в оттенках серого [0,255]
-        eps: float — критерий останова
+        eps: float — критерий остановки
         max_iter: int — максимум итераций
         hist: np.ndarray — гистограмма для улучшения начального приближения (опционально)
         use_hist_init: bool — использовать пики гистограммы для инициализации
@@ -44,7 +44,7 @@ def threshold_iterative(image: np.ndarray, eps: float = 0.5, max_iter: int = 50,
     # Начальное приближение
     if use_hist_init and hist is not None:
         # Используем пики гистограммы для лучшей инициализации
-        from .hist_utils import find_peaks, find_thresholds_between_peaks
+        from .hist_utils import find_peaks
         peaks = find_peaks(hist)
         if len(peaks) >= 2:
             # Используем среднее между двумя основными пиками как начальный порог
@@ -56,7 +56,7 @@ def threshold_iterative(image: np.ndarray, eps: float = 0.5, max_iter: int = 50,
         T_old = (np.min(image_float) + np.max(image_float)) / 2.0
     T_new = T_old  # Инициализируем для случая, если цикл не выполнится
     
-    for iteration in range(max_iter):
+    for _ in range(max_iter):
         # Разделяем пиксели на два класса
         class1 = image_float[image_float <= T_old]
         class2 = image_float[image_float > T_old]
@@ -65,7 +65,6 @@ def threshold_iterative(image: np.ndarray, eps: float = 0.5, max_iter: int = 50,
             T_new = T_old
             break
         
-        # Вычисляем средние
         mu1 = np.mean(class1)
         mu2 = np.mean(class2)
         

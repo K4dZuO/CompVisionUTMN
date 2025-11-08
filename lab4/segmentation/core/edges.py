@@ -86,7 +86,7 @@ def apply_operator(image: np.ndarray, kernel_x: np.ndarray, kernel_y: np.ndarray
 
 def compute_gradient_magnitude(Gx: np.ndarray, Gy: np.ndarray) -> np.ndarray:
     """
-    Вычисляет градиента G = sqrt(Gx² + Gy²).
+    Вычисляет градиента G .
     """
     return np.sqrt(Gx**2 + Gy**2)
 

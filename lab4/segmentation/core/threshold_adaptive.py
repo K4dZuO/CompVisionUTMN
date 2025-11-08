@@ -101,7 +101,6 @@ def adaptive_threshold_optimized(image: np.ndarray, window_size: int = 15,
                 window = padded[i:i + window_size, j:j + window_size]
                 local_stats[i, j] = np.mean(window)
     elif stat_type == 'median':
-        # Для медианы нужен цикл
         local_stats = np.zeros_like(image, dtype=np.float64)
         for i in range(h):
             for j in range(w):
