@@ -1,0 +1,346 @@
+"""
+Реализация алгоритма Лукаса-Канаде для вычисления разреженного оптического потока.
+
+АЛГОРИТМ ЛУКАСА-КАНАДЕ:
+======================
+
+Математическая основа:
+----------------------
+Алгоритм основан на предположении локального постоянства потока:
+в небольшой окрестности точки все пиксели движутся с одинаковой скоростью.
+
+Для каждой точки (x, y) с окрестностью Ω (например, окно 5x5):
+- Все точки в окрестности имеют одинаковый вектор потока (u, v)
+- Brightness constancy: I(x, y, t) = I(x + u, y + v, t + 1)
+
+Система уравнений:
+------------------
+Для окрестности Ω размера (2k+1) x (2k+1) получаем систему из (2k+1)² уравнений:
+I_x(x_i, y_i)*u + I_y(x_i, y_i)*v + I_t(x_i, y_i) = 0  для всех (x_i, y_i) ∈ Ω
+
+В матричном виде:
+[A] [u]   [b]
+    [v] = 
+
+где:
+A = [I_x(x_1, y_1)  I_y(x_1, y_1)]
+    [I_x(x_2, y_2)  I_y(x_2, y_2)]
+    [...            ...           ]
+
+b = [-I_t(x_1, y_1)]
+    [-I_t(x_2, y_2)]
+    [...           ]
+
+Решение методом наименьших квадратов:
+--------------------------------------
+[u]   [ΣI_x²   ΣI_xI_y]⁻¹ [ΣI_xI_t]
+[v] = [ΣI_xI_y ΣI_y²  ]   [ΣI_yI_t]
+
+где суммы берутся по всем точкам в окрестности Ω.
+
+Условие разрешимости:
+---------------------
+Матрица [ΣI_x²   ΣI_xI_y] должна быть обратимой (не вырожденной).
+         [ΣI_xI_y ΣI_y²  ]
+
+Это означает, что в окрестности должны присутствовать градиенты в обоих
+направлениях (структурированная текстура, углы). Плоские или одномерные
+области (aperture problem) не дают надежного решения.
+
+Пирамидальный подход:
+---------------------
+Для обработки больших перемещений используется пирамида изображений:
+1. Построение гауссовой пирамиды (несколько уровней с уменьшением разрешения)
+2. Вычисление потока на верхнем уровне (низкое разрешение, большие перемещения)
+3. Уточнение потока на следующих уровнях вниз
+4. Финальное уточнение на исходном разрешении
+
+Преимущества:
+-------------
+- Быстрое вычисление (только для ключевых точек)
+- Устойчивость к шуму благодаря усреднению по окрестности
+- Эффективен для структурированных текстур
+
+Недостатки:
+-----------
+- Разреженный поток (только для "хороших" точек)
+- Не работает для плоских областей
+- Ограничен размером окна (не может отследить большие перемещения без пирамиды)
+
+Детектирование ключевых точек:
+-------------------------------
+Используются методы Shi-Tomasi или Harris для определения "хороших для отслеживания" точек:
+- Углы (corners)
+- Точки с градиентами в обоих направлениях
+- Точки с достаточной вариативностью текстуры
+"""
+
+import numpy as np
+import cv2
+from typing import Tuple, List, Optional
+
+
+class LucasKanadeProcessor:
+    """
+    Процессор для вычисления оптического потока методом Лукаса-Канаде.
+    
+    Оптимизации:
+    - Пирамидальное вычисление для больших перемещений
+    - Эффективное детектирование ключевых точек
+    - Векторизованные вычисления производных
+    - Кэширование структур данных
+    """
+    
+    def __init__(self, window_size: int = 15, max_level: int = 2, 
+                 max_corners: int = 500, quality_level: float = 0.01,
+                 min_distance: int = 10):
+        """
+        Инициализация процессора Лукаса-Канаде.
+        
+        Args:
+            window_size: Размер окна для вычисления потока (2k+1)
+            max_level: Количество уровней пирамиды
+            max_corners: Максимальное количество отслеживаемых точек
+            quality_level: Порог качества для детектирования углов
+            min_distance: Минимальное расстояние между точками
+        """
+        self.window_size = window_size
+        self.max_level = max_level
+        self.max_corners = max_corners
+        self.quality_level = quality_level
+        self.min_distance = min_distance
+        
+        # Параметры для алгоритма отслеживания OpenCV
+        self.lk_params = dict(
+            winSize=(window_size, window_size),
+            maxLevel=max_level,
+            criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03)
+        )
+        
+        # Параметры для детектирования углов
+        self.feature_params = dict(
+            maxCorners=max_corners,
+            qualityLevel=quality_level,
+            minDistance=min_distance,
+            blockSize=3,
+            useHarrisDetector=False,  # Используем Shi-Tomasi
+            k=0.04
+        )
+        
+        # Кэш для предыдущих точек
+        self._prev_points = None
+        self._prev_frame = None
+        
+    def detect_features(self, frame: np.ndarray, mask: Optional[np.ndarray] = None) -> np.ndarray:
+        """
+        Детектирование ключевых точек для отслеживания.
+        
+        Использует метод Shi-Tomasi (Good Features to Track) для нахождения
+        точек с хорошими характеристиками для отслеживания:
+        - Углы
+        - Точки с достаточной текстурной информацией
+        - Точки, которые можно однозначно локализовать
+        
+        Args:
+            frame: Кадр изображения (градации серого)
+            mask: Маска области интереса (опционально)
+            
+        Returns:
+            Массив точек формы (N, 1, 2) для использования с OpenCV
+        """
+        if len(frame.shape) == 3:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        
+        # Детектирование углов методом Shi-Tomasi
+        corners = cv2.goodFeaturesToTrack(frame, mask=mask, **self.feature_params)
+        
+        if corners is None:
+            return np.array([], dtype=np.float32).reshape(0, 1, 2)
+        
+        return corners
+    
+    def compute_flow(self, frame1: np.ndarray, frame2: np.ndarray, 
+                    prev_points: Optional[np.ndarray] = None) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Вычисление оптического потока методом Лукаса-Канаде.
+        
+        Использует пирамидальную версию алгоритма (Lucas-Kanade pyramid)
+        для обработки больших перемещений.
+        
+        Args:
+            frame1: Первый кадр
+            frame2: Второй кадр
+            prev_points: Точки из предыдущего кадра (если None, будут детектированы)
+            
+        Returns:
+            Tuple (next_points, status, error):
+            - next_points: Новые позиции точек
+            - status: Статус отслеживания (1 = успешно, 0 = потеряно)
+            - error: Ошибка отслеживания
+        """
+        # Преобразование в градации серого
+        if len(frame1.shape) == 3:
+            gray1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
+        else:
+            gray1 = frame1.copy()
+            
+        if len(frame2.shape) == 3:
+            gray2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
+        else:
+            gray2 = frame2.copy()
+        
+        # Детектирование точек если не предоставлены
+        if prev_points is None:
+            prev_points = self.detect_features(gray1)
+            if prev_points.shape[0] == 0:
+                # Нет точек для отслеживания
+                return (np.array([]).reshape(0, 1, 2), 
+                       np.array([], dtype=np.uint8), 
+                       np.array([], dtype=np.float32))
+        
+        # Вычисление оптического потока пирамидальным методом
+        next_points, status, error = cv2.calcOpticalFlowPyrLK(
+            gray1, gray2, prev_points, None, **self.lk_params
+        )
+        
+        return next_points, status, error
+    
+    def compute_flow_vectors(self, frame1: np.ndarray, frame2: np.ndarray,
+                           points: Optional[np.ndarray] = None) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Вычисление векторов оптического потока для визуализации.
+        
+        Args:
+            frame1: Первый кадр
+            frame2: Второй кадр
+            points: Начальные точки (если None, будут детектированы)
+            
+        Returns:
+            Tuple (points, vectors, magnitudes):
+            - points: Координаты точек (только успешно отслеженные)
+            - vectors: Векторы потока (u, v) для каждой точки
+            - magnitudes: Величины векторов
+        """
+        if points is None:
+            points = self.detect_features(frame1)
+            if points.shape[0] == 0:
+                return (np.array([]).reshape(0, 2),
+                       np.array([]).reshape(0, 2),
+                       np.array([]))
+        
+        # Вычисление потока
+        next_points, status, error = self.compute_flow(frame1, frame2, points)
+        
+        # Фильтрация успешно отслеженных точек
+        good_points = status.flatten() == 1
+        
+        if not np.any(good_points):
+            return (np.array([]).reshape(0, 2),
+                   np.array([]).reshape(0, 2),
+                   np.array([]))
+        
+        # Извлечение координат
+        prev_pts = points[good_points]
+        next_pts = next_points[good_points]
+        
+        # Вычисление векторов потока
+        vectors = next_pts - prev_pts
+        
+        # Преобразование из формы (N, 1, 2) в (N, 2)
+        prev_pts = prev_pts.reshape(-1, 2)
+        vectors = vectors.reshape(-1, 2)
+        
+        # Вычисление величин
+        magnitudes = np.sqrt(vectors[:, 0]**2 + vectors[:, 1]**2)
+        
+        return prev_pts, vectors, magnitudes
+    
+    def track_features(self, frame1: np.ndarray, frame2: np.ndarray,
+                      prev_points: Optional[np.ndarray] = None) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Отслеживание особенностей между кадрами с обновлением набора точек.
+        
+        Автоматически добавляет новые точки если старые теряются.
+        
+        Args:
+            frame1: Предыдущий кадр
+            frame2: Текущий кадр
+            prev_points: Точки из предыдущего кадра
+            
+        Returns:
+            Tuple (current_points, status): Текущие точки и статус отслеживания
+        """
+        if prev_points is None:
+            # Первый кадр - детектируем точки
+            return self.detect_features(frame2), np.ones((0,), dtype=np.uint8)
+        
+        # Вычисление потока
+        next_points, status, _ = self.compute_flow(frame1, frame2, prev_points)
+        
+        # Фильтрация хороших точек
+        good_points = status.flatten() == 1
+        tracked_points = next_points[good_points]
+        
+        # Детектирование новых точек для замены потерянных
+        if len(tracked_points) < self.max_corners:
+            # Создаем маску, исключая области вокруг уже отслеживаемых точек
+            mask = np.ones(frame2.shape[:2], dtype=np.uint8) * 255
+            if len(frame2.shape) == 3:
+                mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+            
+            # Рисуем черные круги вокруг отслеживаемых точек
+            for pt in tracked_points:
+                cv2.circle(mask, tuple(pt.ravel().astype(int)), 
+                          self.min_distance, 0, -1)
+            
+            if len(mask.shape) == 3:
+                mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+            
+            # Детектируем новые точки
+            new_points = self.detect_features(frame2, mask=mask)
+            
+            # Объединяем точки
+            if new_points.shape[0] > 0:
+                tracked_points = np.vstack([tracked_points, new_points])
+        
+        return tracked_points, status
+    
+    def set_parameters(self, window_size: Optional[int] = None,
+                      max_level: Optional[int] = None,
+                      max_corners: Optional[int] = None,
+                      quality_level: Optional[float] = None,
+                      min_distance: Optional[int] = None):
+        """
+        Обновление параметров алгоритма.
+        
+        Args:
+            window_size: Новый размер окна
+            max_level: Новое количество уровней пирамиды
+            max_corners: Новое максимальное количество точек
+            quality_level: Новый порог качества
+            min_distance: Новое минимальное расстояние
+        """
+        if window_size is not None:
+            self.window_size = window_size
+            self.lk_params['winSize'] = (window_size, window_size)
+        
+        if max_level is not None:
+            self.max_level = max_level
+            self.lk_params['maxLevel'] = max_level
+        
+        if max_corners is not None:
+            self.max_corners = max_corners
+            self.feature_params['maxCorners'] = max_corners
+        
+        if quality_level is not None:
+            self.quality_level = quality_level
+            self.feature_params['qualityLevel'] = quality_level
+        
+        if min_distance is not None:
+            self.min_distance = min_distance
+            self.feature_params['minDistance'] = min_distance
+        
+        # Очистка кэша
+        self._prev_points = None
+        self._prev_frame = None
+
