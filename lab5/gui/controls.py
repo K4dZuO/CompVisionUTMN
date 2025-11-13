@@ -160,32 +160,39 @@ class VideoControlsWidget(QWidget):
     
     def init_ui(self):
         """Инициализация пользовательского интерфейса."""
-        layout = QHBoxLayout()
-        self.setLayout(layout)
-        
-        # Кнопки управления
-        self.play_btn = QPushButton("▶ Воспроизведение")
+        main_layout = QVBoxLayout()
+        self.setLayout(main_layout)
+
+        # Верхний ряд: кнопки управления
+        controls_layout = QHBoxLayout()
+        self.play_btn = QPushButton("▶")
         self.play_btn.clicked.connect(self.playClicked)
-        layout.addWidget(self.play_btn)
-        
-        self.pause_btn = QPushButton("⏸ Пауза")
+        controls_layout.addWidget(self.play_btn)
+
+        self.pause_btn = QPushButton("⏸")
         self.pause_btn.clicked.connect(self.pauseClicked)
-        layout.addWidget(self.pause_btn)
-        
-        self.stop_btn = QPushButton("⏹ Стоп")
+        controls_layout.addWidget(self.pause_btn)
+
+        self.stop_btn = QPushButton("⏹")
         self.stop_btn.clicked.connect(self.stopClicked)
-        layout.addWidget(self.stop_btn)
-        
-        # Слайдер кадров
-        layout.addWidget(QLabel("Кадр:"))
+        controls_layout.addWidget(self.stop_btn)
+
+        main_layout.addLayout(controls_layout)
+
+        # Нижний ряд: слайдер и метка кадра
+        bottom_layout = QHBoxLayout()
+        bottom_layout.addWidget(QLabel("Кадр:"))
+
         self.frame_slider = QSlider(Qt.Horizontal)
+        self.frame_slider.setMinimumWidth(150)
         self.frame_slider.valueChanged.connect(self._on_frame_slider_changed)
-        layout.addWidget(self.frame_slider)
-        
-        # Информация о кадре
+        bottom_layout.addWidget(self.frame_slider)
+
         self.frame_label = QLabel("0 / 0")
-        self.frame_label.setMinimumWidth(100)
-        layout.addWidget(self.frame_label)
+        self.frame_label.setMinimumWidth(60)
+        bottom_layout.addWidget(self.frame_label)
+
+        main_layout.addLayout(bottom_layout)
     
     def set_max_frames(self, max_frames: int):
         """Установка максимального количества кадров."""
