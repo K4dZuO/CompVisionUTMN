@@ -1,0 +1,38 @@
+{
+  "metadata": {
+    "video": {
+      "path": "E:/Downloads/desktop-20251102-17085302_MbuVgh5v.mp4",
+      "fps": 30.0,
+      "width": 990,
+      "height": 474,
+      "frame_count": 163,
+      "current_frame": 0
+    }
+  },
+  "parameters": {
+    "algorithms": {
+      "lucas_kanade": {
+        "window_size": 8,
+        "max_level": 2,
+        "max_corners": 200
+      },
+      "horn_schunck": {
+        "lambda": 6.6000000000000005,
+        "iterations": 100,
+        "threshold": 0.001
+      }
+    }
+  },
+  "results": {},
+  "metrics": {
+    "performance": {
+      "lucas_kanade": {
+        "execution_time": 0.007993698120117188
+      },
+      "horn_schunck": {
+        "execution_time": 0.10400009155273438
+      }
+    }
+  },
+  "timestamp": "2025-11-14T23:15:54.925733"
+}

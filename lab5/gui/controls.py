@@ -99,6 +99,10 @@ class AlgorithmParametersWidget(QWidget):
         self.hs_iterations.valueChanged.connect(lambda v: self._on_param_changed('horn_schunck', 'iterations', int(v)))
         hs_layout.addWidget(self.hs_iterations)
         
+        self.hs_threshold = ParameterSlider("Порог T", 0.0, 0.01, 0.001, 0.0001, 4)
+        self.hs_threshold.valueChanged.connect(lambda v: self._on_param_changed('horn_schunck', 'threshold', v))
+        hs_layout.addWidget(self.hs_threshold)
+        
         layout.addWidget(self.hs_group)
         
         # Группа для параметров Лукаса-Канаде
@@ -132,7 +136,8 @@ class AlgorithmParametersWidget(QWidget):
         """Получение параметров Хорна-Шанка."""
         return {
             'lambda': self.hs_lambda.get_value(),
-            'iterations': int(self.hs_iterations.get_value())
+            'iterations': int(self.hs_iterations.get_value()),
+            'threshold': self.hs_threshold.get_value()
         }
     
     def get_lucas_kanade_params(self) -> dict:

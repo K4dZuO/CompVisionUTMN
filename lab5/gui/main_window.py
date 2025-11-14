@@ -63,7 +63,8 @@ class ProcessingThread(QThread):
             if self.algorithm == 'horn_schunck':
                 processor = HornSchunckProcessor(
                     lambda_val=self.algorithm_params.get('lambda', 1.0),
-                    num_iterations=self.algorithm_params.get('iterations', 100)
+                    num_iterations=self.algorithm_params.get('iterations', 100),
+                    threshold=self.algorithm_params.get('threshold', 0.001)
                 )
                 u, v, magnitude, angle = processor.compute_flow_magnitude_direction(
                     self.frame1, self.frame2

@@ -87,7 +87,9 @@ class HornSchunckProcessor:
         Args:
             lambda_val: Весовой коэффициент регуляризации (больше = более гладкий поток)
             num_iterations: Количество итераций для сходимости
-            threshold: Порог сходимости (не используется в текущей реализации)
+            threshold: Порог сходимости T - если среднее изменение между итерациями
+                      меньше этого значения, итерации останавливаются досрочно.
+                      Если threshold <= 0, используется фиксированное количество итераций.
         """
         self.lambda_val = lambda_val
         self.num_iterations = num_iterations
@@ -171,6 +173,10 @@ class HornSchunckProcessor:
                           [0.25, 0, 0.25],
                           [0, 0.25, 0]], dtype=np.float32)
         
+        # Предыдущие значения для проверки сходимости
+        u_prev = np.zeros_like(u)
+        v_prev = np.zeros_like(v)
+        
         for iteration in range(self.num_iterations):
             # Вычисление локальных средних (лапласиан)
             # Используем фильтрацию для эффективного вычисления
@@ -184,6 +190,21 @@ class HornSchunckProcessor:
             # Обновление компонент потока
             u = u_avg - (I_x * P) / denominator
             v = v_avg - (I_y * P) / denominator
+            
+            # Проверка сходимости по порогу T
+            # Вычисляем среднее изменение между итерациями
+            if self.threshold > 0:
+                u_change = np.mean(np.abs(u - u_prev))
+                v_change = np.mean(np.abs(v - v_prev))
+                max_change = max(u_change, v_change)
+                
+                # Если изменение меньше порога, останавливаем итерации
+                if max_change < self.threshold:
+                    break
+            
+            # Сохранение текущих значений для следующей итерации
+            u_prev = u.copy()
+            v_prev = v.copy()
         
         return u, v
     

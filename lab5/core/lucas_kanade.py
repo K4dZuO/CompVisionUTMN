@@ -198,10 +198,162 @@ class LucasKanadeProcessor:
                        np.array([], dtype=np.uint8), 
                        np.array([], dtype=np.float32))
         
-        # Вычисление оптического потока пирамидальным методом
+        # Вычисление оптического потока пирамидальным методом (OpenCV)
         next_points, status, error = cv2.calcOpticalFlowPyrLK(
             gray1, gray2, prev_points, None, **self.lk_params
         )
+        
+        return next_points, status, error
+    
+    def compute_flow_manual(self, frame1: np.ndarray, frame2: np.ndarray,
+                           prev_points: Optional[np.ndarray] = None) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        РУЧНАЯ РЕАЛИЗАЦИЯ алгоритма Лукаса-Канаде.
+        
+        Реализует классический алгоритм Лукаса-Канаде методом наименьших квадратов:
+        Для каждой точки с окрестностью Ω размера (2k+1) x (2k+1):
+        - Вычисляет производные I_x, I_y, I_t в окрестности
+        - Решает систему уравнений методом наименьших квадратов:
+          [ΣI_x²   ΣI_xI_y] [u]   [ΣI_xI_t]
+          [ΣI_xI_y ΣI_y²  ] [v] = [ΣI_yI_t]
+        
+        Математическая основа:
+        ----------------------
+        Предположение локального постоянства потока: все пиксели в окрестности
+        движутся с одинаковой скоростью (u, v).
+        
+        Brightness constancy: I(x, y, t) = I(x + u, y + v, t + 1)
+        Линеаризация: I_x*u + I_y*v + I_t = 0
+        
+        Для окрестности получаем систему из (2k+1)² уравнений, которая решается
+        методом наименьших квадратов.
+        
+        Args:
+            frame1: Первый кадр
+            frame2: Второй кадр
+            prev_points: Точки для отслеживания (если None, будут детектированы)
+            
+        Returns:
+            Tuple (next_points, status, error):
+            - next_points: Новые позиции точек (форма: N, 1, 2)
+            - status: Статус отслеживания (1 = успешно, 0 = потеряно)
+            - error: Ошибка отслеживания
+        """
+        # Преобразование в градации серого
+        if len(frame1.shape) == 3:
+            gray1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY).astype(np.float32)
+        else:
+            gray1 = frame1.astype(np.float32)
+            
+        if len(frame2.shape) == 3:
+            gray2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY).astype(np.float32)
+        else:
+            gray2 = frame2.astype(np.float32)
+        
+        # Детектирование точек если не предоставлены
+        if prev_points is None:
+            prev_points = self.detect_features(frame1)
+            if prev_points.shape[0] == 0:
+                return (np.array([]).reshape(0, 1, 2), 
+                       np.array([], dtype=np.uint8), 
+                       np.array([], dtype=np.float32))
+        
+        # Преобразование точек в целые координаты
+        points = prev_points.reshape(-1, 2).astype(np.int32)
+        num_points = len(points)
+        
+        # Вычисление производных для всего изображения
+        # Пространственные производные
+        I_x = cv2.Sobel(gray1, cv2.CV_32F, 1, 0, ksize=3)
+        I_y = cv2.Sobel(gray1, cv2.CV_32F, 0, 1, ksize=3)
+        
+        # Временная производная
+        I_t = gray2 - gray1
+        
+        # Инициализация результатов
+        next_points = np.zeros((num_points, 1, 2), dtype=np.float32)
+        status = np.zeros(num_points, dtype=np.uint8)
+        error = np.zeros(num_points, dtype=np.float32)
+        
+        # Размер окна (k = (window_size - 1) / 2)
+        k = self.window_size // 2
+        height, width = gray1.shape
+        
+        # Обработка каждой точки
+        for i, (x, y) in enumerate(points):
+            # Проверка границ
+            if x < k or x >= width - k or y < k or y >= height - k:
+                status[i] = 0
+                continue
+            
+            # Извлечение окрестности
+            x_min, x_max = x - k, x + k + 1
+            y_min, y_max = y - k, y + k + 1
+            
+            I_x_window = I_x[y_min:y_max, x_min:x_max]
+            I_y_window = I_y[y_min:y_max, x_min:x_max]
+            I_t_window = I_t[y_min:y_max, x_min:x_max]
+            
+            # Вычисление сумм для системы уравнений
+            # ΣI_x², ΣI_y², ΣI_x*I_y, ΣI_x*I_t, ΣI_y*I_t
+            I_x2_sum = np.sum(I_x_window ** 2)
+            I_y2_sum = np.sum(I_y_window ** 2)
+            I_xy_sum = np.sum(I_x_window * I_y_window)
+            I_xt_sum = np.sum(I_x_window * I_t_window)
+            I_yt_sum = np.sum(I_y_window * I_t_window)
+            
+            # Матрица системы уравнений
+            # [ΣI_x²   ΣI_xI_y] [u]   [ΣI_xI_t]
+            # [ΣI_xI_y ΣI_y²  ] [v] = [ΣI_yI_t]
+            A = np.array([[I_x2_sum, I_xy_sum],
+                          [I_xy_sum, I_y2_sum]], dtype=np.float32)
+            
+            b = np.array([-I_xt_sum, -I_yt_sum], dtype=np.float32)
+            
+            # Проверка вырожденности матрицы (определитель)
+            det = A[0, 0] * A[1, 1] - A[0, 1] * A[1, 0]
+            
+            # Порог для определения "хороших" точек (избегаем деления на ноль)
+            # Если определитель слишком мал, точка не подходит для отслеживания
+            min_det = 1e-6
+            
+            if abs(det) < min_det:
+                # Матрица вырождена - точка не подходит для отслеживания
+                status[i] = 0
+                continue
+            
+            # Решение системы уравнений: [u, v] = A^(-1) * b
+            # Обратная матрица 2x2: [a b]^(-1) = (1/det) * [d -b]
+            #                        [c d]                  [-c a]
+            A_inv = (1.0 / det) * np.array([[A[1, 1], -A[0, 1]],
+                                            [-A[1, 0], A[0, 0]]], dtype=np.float32)
+            
+            flow = A_inv @ b
+            
+            # Проверка валидности результата (отсеивание слишком больших перемещений)
+            max_flow = 50.0  # Максимальное допустимое перемещение
+            if np.abs(flow[0]) > max_flow or np.abs(flow[1]) > max_flow:
+                status[i] = 0
+                continue
+            
+            # Вычисление новой позиции точки
+            next_x = float(x + flow[0])
+            next_y = float(y + flow[1])
+            
+            # Проверка границ для новой позиции
+            if next_x < 0 or next_x >= width or next_y < 0 or next_y >= height:
+                status[i] = 0
+                continue
+            
+            # Вычисление ошибки (brightness constancy error)
+            # Ошибка = среднее значение |I_x*u + I_y*v + I_t| в окрестности
+            error_window = np.abs(I_x_window * flow[0] + I_y_window * flow[1] + I_t_window)
+            error[i] = np.mean(error_window)
+            
+            # Точка успешно отслежена
+            status[i] = 1
+            next_points[i, 0, 0] = next_x
+            next_points[i, 0, 1] = next_y
         
         return next_points, status, error
     
