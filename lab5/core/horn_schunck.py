@@ -69,29 +69,14 @@ from typing import Tuple, Optional
 
 
 class HornSchunckProcessor:
-    """
-    Процессор для вычисления оптического потока методом Хорна-Шанка.
-    
-    Оптимизации:
-    - Использование векторизованных операций NumPy
-    - Предвычисление производных и их квадратов
-    - Кэширование знаменателя для ускорения итераций
-    - Поддержка многоядерных вычислений через NumPy
-    """
-    
-    def __init__(self, lambda_val: float = 1.0, num_iterations: int = 100, 
-                 threshold: float = 0.001):
+    def __init__(self, lambda_val: float = 1.0, num_iterations: int = 100):
         """
-        Инициализация процессора Хорна-Шанка.
-        
-        Args:
-            lambda_val: Весовой коэффициент регуляризации (больше = более гладкий поток)
-            num_iterations: Количество итераций для сходимости
-            threshold: Порог сходимости (не используется в текущей реализации)
+        lambda_val: Весовой коэффициент регуляризации (больше = более гладкий поток)
+        num_iterations: Количество итераций для сходимости
+        threshold: Порог сходимости (не используется в текущей реализации)
         """
         self.lambda_val = lambda_val
         self.num_iterations = num_iterations
-        self.threshold = threshold
         
         # Кэш для производных (оптимизация)
         self._I_x_cache = None
@@ -119,7 +104,6 @@ class HornSchunckProcessor:
         frame2 = frame2.astype(np.float32)
         
         # Пространственные производные используя оператор Собеля
-        # ksize=3 дает хороший баланс между точностью и устойчивостью к шуму
         I_x = cv2.Sobel(frame1, cv2.CV_32F, 1, 0, ksize=3)
         I_y = cv2.Sobel(frame1, cv2.CV_32F, 0, 1, ksize=3)
         
@@ -171,7 +155,7 @@ class HornSchunckProcessor:
                           [0.25, 0, 0.25],
                           [0, 0.25, 0]], dtype=np.float32)
         
-        for iteration in range(self.num_iterations):
+        for _ in range(self.num_iterations):
             # Вычисление локальных средних (лапласиан)
             # Используем фильтрацию для эффективного вычисления
             u_avg = cv2.filter2D(u, -1, kernel)
@@ -206,8 +190,7 @@ class HornSchunckProcessor:
         return u, v, magnitude, angle
     
     def set_parameters(self, lambda_val: Optional[float] = None, 
-                      num_iterations: Optional[int] = None,
-                      threshold: Optional[float] = None):
+                      num_iterations: Optional[int] = None):
         """
         Обновление параметров алгоритма.
         
@@ -220,8 +203,6 @@ class HornSchunckProcessor:
             self.lambda_val = lambda_val
         if num_iterations is not None:
             self.num_iterations = num_iterations
-        if threshold is not None:
-            self.threshold = threshold
         
         # Очистка кэша при изменении параметров
         self._I_x_cache = None

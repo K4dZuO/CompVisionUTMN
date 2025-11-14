@@ -374,7 +374,6 @@ class OpticalFlowMainWindow(QMainWindow):
         # Получение параметров визуализации
         mode, vis_params = self.visualization_controls.get_visualization_params()
         scale = vis_params['scale']
-        alpha = vis_params['alpha']
         
         # Визуализация в зависимости от алгоритма
         if self.current_algorithm == 'horn_schunck':
