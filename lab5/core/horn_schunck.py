@@ -69,18 +69,7 @@ from typing import Tuple, Optional
 
 
 class HornSchunckProcessor:
-    """
-    Процессор для вычисления оптического потока методом Хорна-Шанка.
-    
-    Оптимизации:
-    - Использование векторизованных операций NumPy
-    - Предвычисление производных и их квадратов
-    - Кэширование знаменателя для ускорения итераций
-    - Поддержка многоядерных вычислений через NumPy
-    """
-    
-    def __init__(self, lambda_val: float = 1.0, num_iterations: int = 100, 
-                 threshold: float = 0.001):
+    def __init__(self, lambda_val: float = 1.0, num_iterations: int = 100):
         """
         Инициализация процессора Хорна-Шанка.
         
@@ -93,14 +82,13 @@ class HornSchunckProcessor:
         """
         self.lambda_val = lambda_val
         self.num_iterations = num_iterations
-        self.threshold = threshold
         
         # Кэш для производных (оптимизация)
         self._I_x_cache = None
         self._I_y_cache = None
         self._I_t_cache = None
         self._denominator_cache = None
-        self._prev_frame = None
+        self._prev_frame = None     
         
     def compute_derivatives(self, frame1: np.ndarray, frame2: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
@@ -121,7 +109,6 @@ class HornSchunckProcessor:
         frame2 = frame2.astype(np.float32)
         
         # Пространственные производные используя оператор Собеля
-        # ksize=3 дает хороший баланс между точностью и устойчивостью к шуму
         I_x = cv2.Sobel(frame1, cv2.CV_32F, 1, 0, ksize=3)
         I_y = cv2.Sobel(frame1, cv2.CV_32F, 0, 1, ksize=3)
         
@@ -173,40 +160,39 @@ class HornSchunckProcessor:
                           [0.25, 0, 0.25],
                           [0, 0.25, 0]], dtype=np.float32)
         
-        # Предыдущие значения для проверки сходимости
-        u_prev = np.zeros_like(u)
-        v_prev = np.zeros_like(v)
+    # Инициализация предыдущих значений для проверки сходимости
+    u_prev = np.zeros_like(u)
+    v_prev = np.zeros_like(v)
+
+    for iteration in range(self.num_iterations):
+        # Вычисление локальных средних (лапласиан)
+        # Используем фильтрацию для эффективного вычисления
+        u_avg = cv2.filter2D(u, -1, kernel)
+        v_avg = cv2.filter2D(v, -1, kernel)
         
-        for iteration in range(self.num_iterations):
-            # Вычисление локальных средних (лапласиан)
-            # Используем фильтрацию для эффективного вычисления
-            u_avg = cv2.filter2D(u, -1, kernel)
-            v_avg = cv2.filter2D(v, -1, kernel)
-            
-            # Обновление u и v согласно уравнениям Хорна-Шанка
-            # P = I_x*u_avg + I_y*v_avg + I_t
-            P = I_x * u_avg + I_y * v_avg + I_t
-            
-            # Обновление компонент потока
-            u = u_avg - (I_x * P) / denominator
-            v = v_avg - (I_y * P) / denominator
-            
-            # Проверка сходимости по порогу T
-            # Вычисляем среднее изменение между итерациями
-            if self.threshold > 0:
-                u_change = np.mean(np.abs(u - u_prev))
-                v_change = np.mean(np.abs(v - v_prev))
-                max_change = max(u_change, v_change)
-                
-                # Если изменение меньше порога, останавливаем итерации
-                if max_change < self.threshold:
-                    break
-            
-            # Сохранение текущих значений для следующей итерации
-            u_prev = u.copy()
-            v_prev = v.copy()
+        # Обновление u и v согласно уравнениям Хорна-Шанка
+        # P = I_x*u_avg + I_y*v_avg + I_t
+        P = I_x * u_avg + I_y * v_avg + I_t
         
-        return u, v
+        # Обновление компонент потока
+        u = u_avg - (I_x * P) / denominator
+        v = v_avg - (I_y * P) / denominator
+        
+        # Проверка сходимости по порогу T (если threshold > 0)
+        if self.threshold > 0:
+            u_change = np.mean(np.abs(u - u_prev))
+            v_change = np.mean(np.abs(v - v_prev))
+            max_change = max(u_change, v_change)
+            
+            # Если изменение меньше порога, останавливаем итерации
+            if max_change < self.threshold:
+                break
+        
+        # Сохранение текущих значений для следующей итерации
+        u_prev = u.copy()
+        v_prev = v.copy()
+
+    return u, v
     
     def compute_flow_magnitude_direction(self, frame1: np.ndarray, frame2: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
@@ -227,8 +213,7 @@ class HornSchunckProcessor:
         return u, v, magnitude, angle
     
     def set_parameters(self, lambda_val: Optional[float] = None, 
-                      num_iterations: Optional[int] = None,
-                      threshold: Optional[float] = None):
+                      num_iterations: Optional[int] = None):
         """
         Обновление параметров алгоритма.
         
@@ -241,8 +226,6 @@ class HornSchunckProcessor:
             self.lambda_val = lambda_val
         if num_iterations is not None:
             self.num_iterations = num_iterations
-        if threshold is not None:
-            self.threshold = threshold
         
         # Очистка кэша при изменении параметров
         self._I_x_cache = None
