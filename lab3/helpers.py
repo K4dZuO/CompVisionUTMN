@@ -6,7 +6,6 @@ from PIL import Image
 from io import BytesIO
 
 def get_histogram(image_2d: np.ndarray) -> np.ndarray:
-    """Считает гистограмму вручную (без np.histogram)."""
     hist = np.zeros(256, dtype=np.int32)
     flat = image_2d.ravel()
     for val in flat:
