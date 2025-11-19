@@ -69,7 +69,7 @@ from typing import Tuple, Optional
 
 
 class HornSchunckProcessor:
-    def __init__(self, lambda_val: float = 1.0, num_iterations: int = 100):
+    def __init__(self, lambda_val: float = 1.0, num_iterations: int = 100, threshold: float = 0.0):
         """
         Инициализация процессора Хорна-Шанка.
         
@@ -82,6 +82,7 @@ class HornSchunckProcessor:
         """
         self.lambda_val = lambda_val
         self.num_iterations = num_iterations
+        self.threshold = threshold
         
         # Кэш для производных (оптимизация)
         self._I_x_cache = None
@@ -212,24 +213,4 @@ class HornSchunckProcessor:
         
         return u, v, magnitude, angle
     
-    def set_parameters(self, lambda_val: Optional[float] = None, 
-                      num_iterations: Optional[int] = None):
-        """
-        Обновление параметров алгоритма.
-        
-        Args:
-            lambda_val: Новое значение lambda (если не None)
-            num_iterations: Новое количество итераций (если не None)
-            threshold: Новый порог (если не None)
-        """
-        if lambda_val is not None:
-            self.lambda_val = lambda_val
-        if num_iterations is not None:
-            self.num_iterations = num_iterations
-        
-        # Очистка кэша при изменении параметров
-        self._I_x_cache = None
-        self._I_y_cache = None
-        self._I_t_cache = None
-        self._denominator_cache = None
 

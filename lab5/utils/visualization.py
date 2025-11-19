@@ -158,29 +158,6 @@ class VisualizationEngine:
         
         return bgr
     
-    def visualize_dense_flow_overlay(self, frame: np.ndarray, u: np.ndarray, v: np.ndarray,
-                                    alpha: float = 0.7, magnitude_scale: float = 10.0) -> np.ndarray:
-        """
-        Наложение плотного потока на исходный кадр.
-        
-        Args:
-            frame: Исходный кадр
-            u: Горизонтальная компонента потока
-            v: Вертикальная компонента потока
-            alpha: Прозрачность наложения (0-1)
-            magnitude_scale: Масштаб для нормализации величин
-            
-        Returns:
-            Комбинированное изображение
-        """
-        # Получение HSV визуализации
-        flow_vis = self.visualize_dense_flow_hsv(u, v, magnitude_scale)
-        
-        # Наложение с прозрачностью
-        result = cv2.addWeighted(frame, 1 - alpha, flow_vis, alpha, 0)
-        
-        return result
-    
     def visualize_heatmap(self, magnitude: np.ndarray, colormap: int = cv2.COLORMAP_JET) -> np.ndarray:
         """
         Визуализация величины потока в виде heat map.
@@ -255,51 +232,3 @@ class VisualizationEngine:
         
         return vis_frame
     
-    def create_legend(self, size: Tuple[int, int] = (200, 200)) -> np.ndarray:
-        """
-        Создание легенды для визуализации потока.
-        
-        Показывает соответствие цветов направлениям движения.
-        
-        Args:
-            size: Размер легенды (width, height)
-            
-        Returns:
-            Изображение легенды
-        """
-        width, height = size
-        legend = np.zeros((height, width, 3), dtype=np.uint8)
-        
-        # Создание радиального градиента для направлений
-        center_x, center_y = width // 2, height // 2
-        radius = min(width, height) // 2 - 10
-        
-        for y in range(height):
-            for x in range(width):
-                dx = x - center_x
-                dy = y - center_y
-                dist = np.sqrt(dx**2 + dy**2)
-                
-                if dist <= radius:
-                    angle = np.arctan2(dy, dx)
-                    angle_deg = np.degrees(angle) % 360
-                    
-                    # Нормализация расстояния для насыщенности
-                    sat = int((1 - dist / radius) * 255)
-                    
-                    hue = int(angle_deg / 360 * 179)
-                    color_hsv = np.uint8([[[hue, sat, 255]]])
-                    color_bgr = cv2.cvtColor(color_hsv, cv2.COLOR_HSV2BGR)[0][0]
-                    legend[y, x] = color_bgr
-        
-        # Добавление стрелок направлений
-        directions = [0, 45, 90, 135, 180, 225, 270, 315]
-        for angle_deg in directions:
-            angle_rad = np.radians(angle_deg)
-            end_x = int(center_x + radius * 0.8 * np.cos(angle_rad))
-            end_y = int(center_y + radius * 0.8 * np.sin(angle_rad))
-            cv2.arrowedLine(legend, (center_x, center_y), (end_x, end_y),
-                          (255, 255, 255), 2, tipLength=0.2)
-        
-        return legend
-

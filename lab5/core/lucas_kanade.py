@@ -77,7 +77,7 @@ b = [-I_t(x_1, y_1)]
 
 import numpy as np
 import cv2
-from typing import Tuple, List, Optional
+from typing import Tuple, Optional
 
 
 class LucasKanadeProcessor:
@@ -407,92 +407,4 @@ class LucasKanadeProcessor:
         
         return prev_pts, vectors, magnitudes
     
-    def track_features(self, frame1: np.ndarray, frame2: np.ndarray,
-                      prev_points: Optional[np.ndarray] = None) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        Отслеживание особенностей между кадрами с обновлением набора точек.
-        
-        Автоматически добавляет новые точки если старые теряются.
-        
-        Args:
-            frame1: Предыдущий кадр
-            frame2: Текущий кадр
-            prev_points: Точки из предыдущего кадра
-            
-        Returns:
-            Tuple (current_points, status): Текущие точки и статус отслеживания
-        """
-        if prev_points is None:
-            # Первый кадр - детектируем точки
-            return self.detect_features(frame2), np.ones((0,), dtype=np.uint8)
-        
-        # Вычисление потока
-        next_points, status, _ = self.compute_flow(frame1, frame2, prev_points)
-        
-        # Фильтрация хороших точек
-        good_points = status.flatten() == 1
-        tracked_points = next_points[good_points]
-        
-        # Детектирование новых точек для замены потерянных
-        if len(tracked_points) < self.max_corners:
-            # Создаем маску, исключая области вокруг уже отслеживаемых точек
-            mask = np.ones(frame2.shape[:2], dtype=np.uint8) * 255
-            if len(frame2.shape) == 3:
-                mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
-            
-            # Рисуем черные круги вокруг отслеживаемых точек
-            for pt in tracked_points:
-                cv2.circle(mask, tuple(pt.ravel().astype(int)), 
-                          self.min_distance, 0, -1)
-            
-            if len(mask.shape) == 3:
-                mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
-            
-            # Детектируем новые точки
-            new_points = self.detect_features(frame2, mask=mask)
-            
-            # Объединяем точки
-            if new_points.shape[0] > 0:
-                tracked_points = np.vstack([tracked_points, new_points])
-        
-        return tracked_points, status
-    
-    def set_parameters(self, window_size: Optional[int] = None,
-                      max_level: Optional[int] = None,
-                      max_corners: Optional[int] = None,
-                      quality_level: Optional[float] = None,
-                      min_distance: Optional[int] = None):
-        """
-        Обновление параметров алгоритма.
-        
-        Args:
-            window_size: Новый размер окна
-            max_level: Новое количество уровней пирамиды
-            max_corners: Новое максимальное количество точек
-            quality_level: Новый порог качества
-            min_distance: Новое минимальное расстояние
-        """
-        if window_size is not None:
-            self.window_size = window_size
-            self.lk_params['winSize'] = (window_size, window_size)
-        
-        if max_level is not None:
-            self.max_level = max_level
-            self.lk_params['maxLevel'] = max_level
-        
-        if max_corners is not None:
-            self.max_corners = max_corners
-            self.feature_params['maxCorners'] = max_corners
-        
-        if quality_level is not None:
-            self.quality_level = quality_level
-            self.feature_params['qualityLevel'] = quality_level
-        
-        if min_distance is not None:
-            self.min_distance = min_distance
-            self.feature_params['minDistance'] = min_distance
-        
-        # Очистка кэша
-        self._prev_points = None
-        self._prev_frame = None
 

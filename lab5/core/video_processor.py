@@ -27,9 +27,8 @@
 
 import cv2
 import numpy as np
-from typing import Optional, Tuple, Iterator, List
+from typing import Optional, Tuple
 import os
-from collections import deque
 
 
 class VideoController:
@@ -190,24 +189,6 @@ class VideoController:
         
         return frame
     
-    def get_previous_frame(self) -> Optional[np.ndarray]:
-        """
-        Переход к предыдущему кадру.
-        
-        Returns:
-            Предыдущий кадр или None если начало видео
-        """
-        if self.cap is None or self.current_frame_idx <= 0:
-            return None
-        
-        self.current_frame_idx -= 1
-        frame = self.get_frame(self.current_frame_idx)
-        
-        if frame is not None:
-            self.current_frame = frame
-        
-        return frame
-    
     def set_frame(self, frame_idx: int) -> bool:
         """
         Установка текущего кадра по индексу.
@@ -280,92 +261,4 @@ class VideoController:
         """Деструктор - освобождение ресурсов."""
         self.release()
 
-
-class VideoProcessor:
-    """
-    Процессор для пакетной обработки видео с оптимизированным I/O.
-    
-    Особенности:
-    - Потоковая обработка (генератор)
-    - Минимизация использования памяти
-    - Поддержка обработки диапазонов кадров
-    """
-    
-    def __init__(self, video_path: str):
-        """
-        Инициализация процессора.
-        
-        Args:
-            video_path: Путь к видеофайлу
-        """
-        self.video_path = video_path
-        self.cap: Optional[cv2.VideoCapture] = None
-        
-    def __enter__(self):
-        """Контекстный менеджер - открытие видео."""
-        self.cap = cv2.VideoCapture(self.video_path)
-        if not self.cap.isOpened():
-            raise ValueError(f"Не удалось открыть видео {self.video_path}")
-        return self
-    
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Контекстный менеджер - закрытие видео."""
-        if self.cap is not None:
-            self.cap.release()
-    
-    def process_frames(self, start_frame: int = 0, end_frame: Optional[int] = None,
-                      step: int = 1) -> Iterator[Tuple[int, np.ndarray]]:
-        """
-        Генератор для потоковой обработки кадров.
-        
-        Args:
-            start_frame: Начальный кадр
-            end_frame: Конечный кадр (если None, до конца)
-            step: Шаг обработки
-            
-        Yields:
-            Tuple (frame_idx, frame) для каждого кадра
-        """
-        if self.cap is None:
-            return
-        
-        # Установка начальной позиции
-        self.cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
-        frame_count = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        
-        if end_frame is None:
-            end_frame = frame_count
-        
-        frame_idx = start_frame
-        
-        while frame_idx < end_frame:
-            ret, frame = self.cap.read()
-            
-            if not ret:
-                break
-            
-            yield frame_idx, frame
-            frame_idx += step
-            
-            # Пропуск кадров если step > 1
-            if step > 1:
-                self.cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
-    
-    def get_frame_range(self, start_frame: int, end_frame: int) -> List[np.ndarray]:
-        """
-        Загрузка диапазона кадров в память.
-        
-        Внимание: Использовать только для небольших диапазонов!
-        
-        Args:
-            start_frame: Начальный кадр
-            end_frame: Конечный кадр
-            
-        Returns:
-            Список кадров
-        """
-        frames = []
-        for frame_idx, frame in self.process_frames(start_frame, end_frame):
-            frames.append(frame.copy())
-        return frames
 
