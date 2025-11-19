@@ -92,15 +92,12 @@ class AlgorithmParametersWidget(QWidget):
         self.hs_group.setLayout(hs_layout)
         
         self.hs_lambda = ParameterSlider("Lambda (λ)", 0.1, 10.0, 1.0, 0.1, 2)
-        self.hs_lambda.valueChanged.connect(lambda v: self._on_param_changed('horn_schunck', 'lambda', v))
         hs_layout.addWidget(self.hs_lambda)
         
         self.hs_iterations = ParameterSlider("Итерации", 10, 200, 100, 10, 0)
-        self.hs_iterations.valueChanged.connect(lambda v: self._on_param_changed('horn_schunck', 'iterations', int(v)))
         hs_layout.addWidget(self.hs_iterations)
         
         self.hs_threshold = ParameterSlider("Порог T", 0.0, 0.01, 0.001, 0.0001, 4)
-        self.hs_threshold.valueChanged.connect(lambda v: self._on_param_changed('horn_schunck', 'threshold', v))
         hs_layout.addWidget(self.hs_threshold)
         
         layout.addWidget(self.hs_group)
@@ -110,27 +107,19 @@ class AlgorithmParametersWidget(QWidget):
         lk_layout = QVBoxLayout()
         self.lk_group.setLayout(lk_layout)
         
-        self.lk_window_size = ParameterSlider("Размер окна", 3, 31, 15, 2, 0)
-        self.lk_window_size.valueChanged.connect(lambda v: self._on_param_changed('lucas_kanade', 'window_size', int(v)))
+        self.lk_window_size = ParameterSlider("Размер окна", 3, 31, 15, 1, 0)
         lk_layout.addWidget(self.lk_window_size)
         
         self.lk_max_level = ParameterSlider("Уровни пирамиды", 0, 4, 2, 1, 0)
-        self.lk_max_level.valueChanged.connect(lambda v: self._on_param_changed('lucas_kanade', 'max_level', int(v)))
         lk_layout.addWidget(self.lk_max_level)
         
         self.lk_max_corners = ParameterSlider("Макс. точек", 100, 2000, 500, 100, 0)
-        self.lk_max_corners.valueChanged.connect(lambda v: self._on_param_changed('lucas_kanade', 'max_corners', int(v)))
         lk_layout.addWidget(self.lk_max_corners)
         
         layout.addWidget(self.lk_group)
         
         # Растягивание вниз
         layout.addStretch()
-    
-    def _on_param_changed(self, algorithm: str, param_name: str, value):
-        """Обработка изменения параметра."""
-        # Эмиссия сигнала будет реализована в главном окне
-        pass
     
     def get_horn_schunck_params(self) -> dict:
         """Получение параметров Хорна-Шанка."""
