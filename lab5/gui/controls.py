@@ -117,9 +117,56 @@ class AlgorithmParametersWidget(QWidget):
         lk_layout.addWidget(self.lk_max_corners)
         
         layout.addWidget(self.lk_group)
+
+        # Группа для параметров Farneback
+        self.fb_group = QGroupBox("Алгоритм Farneback (OpenCV)")
+        fb_layout = QVBoxLayout()
+        self.fb_group.setLayout(fb_layout)
+        
+        self.fb_pyr_scale = ParameterSlider("Масштаб пирамиды", 0.1, 0.9, 0.5, 0.1, 1)
+        fb_layout.addWidget(self.fb_pyr_scale)
+        
+        self.fb_levels = ParameterSlider("Уровни пирамиды", 1, 5, 3, 1, 0)
+        fb_layout.addWidget(self.fb_levels)
+        
+        self.fb_winsize = ParameterSlider("Размер окна", 5, 31, 15, 2, 0)
+        fb_layout.addWidget(self.fb_winsize)
+        
+        self.fb_iterations = ParameterSlider("Итерации", 1, 10, 3, 1, 0)
+        fb_layout.addWidget(self.fb_iterations)
+        
+        self.fb_poly_n = ParameterSlider("Размер полинома", 5, 7, 5, 2, 0)
+        fb_layout.addWidget(self.fb_poly_n)
+        
+        self.fb_poly_sigma = ParameterSlider("Сигма Гаусса", 1.0, 1.5, 1.2, 0.1, 1)
+        fb_layout.addWidget(self.fb_poly_sigma)
+        
+        layout.addWidget(self.fb_group)
+
+        # Группа для параметров отслеживания объектов
+        self.tracker_group = QGroupBox("Отслеживание объектов")
+        tracker_layout = QVBoxLayout()
+        self.tracker_group.setLayout(tracker_layout)
+        
+        self.enable_tracking = QCheckBox("Включить отслеживание")
+        tracker_layout.addWidget(self.enable_tracking)
+
+        self.tracker_min_area = ParameterSlider("Мин. площадь", 100, 5000, 500, 100, 0)
+        tracker_layout.addWidget(self.tracker_min_area)
+
+        self.tracker_max_disappeared = ParameterSlider("Макс. исчезновение", 1, 100, 40, 1, 0)
+        tracker_layout.addWidget(self.tracker_max_disappeared)
+        
+        self.tracker_max_distance = ParameterSlider("Макс. дистанция", 10, 200, 50, 5, 0)
+        tracker_layout.addWidget(self.tracker_max_distance)
+
+        layout.addWidget(self.tracker_group)
         
         # Растягивание вниз
         layout.addStretch()
+        
+        # По умолчанию показываем параметры Хорна-Шанка
+        self.set_visible_algorithm(0)
     
     def get_horn_schunck_params(self) -> dict:
         """Получение параметров Хорна-Шанка."""
@@ -136,6 +183,52 @@ class AlgorithmParametersWidget(QWidget):
             'max_level': int(self.lk_max_level.get_value()),
             'max_corners': int(self.lk_max_corners.get_value())
         }
+    
+    def get_farneback_params(self) -> dict:
+        """Получение параметров Farneback."""
+        return {
+            'pyr_scale': self.fb_pyr_scale.get_value(),
+            'levels': int(self.fb_levels.get_value()),
+            'winsize': int(self.fb_winsize.get_value()),
+            'iterations': int(self.fb_iterations.get_value()),
+            'poly_n': int(self.fb_poly_n.get_value()),
+            'poly_sigma': self.fb_poly_sigma.get_value()
+        }
+
+    def get_tracker_params(self) -> dict:
+        """Получение параметров трекера."""
+        return {
+            'enabled': self.enable_tracking.isChecked(),
+            'min_area': int(self.tracker_min_area.get_value()),
+            'max_disappeared': int(self.tracker_max_disappeared.get_value()),
+            'max_distance': int(self.tracker_max_distance.get_value())
+        }
+
+    def set_visible_algorithm(self, algorithm_index: int):
+        """
+        Установка видимости групп параметров в зависимости от выбранного алгоритма.
+        
+        Args:
+            algorithm_index: Индекс выбранного алгоритма
+                0 - Хорн-Шанк
+                1 - Лукас-Канаде
+                2 - Farneback
+        """
+        # Скрываем все группы алгоритмов
+        self.hs_group.setVisible(False)
+        self.lk_group.setVisible(False)
+        self.fb_group.setVisible(False)
+        
+        # Показываем только выбранную
+        if algorithm_index == 0:
+            self.hs_group.setVisible(True)
+        elif algorithm_index == 1:
+            self.lk_group.setVisible(True)
+        elif algorithm_index == 2:
+            self.fb_group.setVisible(True)
+        
+        # Группа трекера всегда видна (или можно настроить по желанию)
+        self.tracker_group.setVisible(True)
 
 
 class VideoControlsWidget(QWidget):

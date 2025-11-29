@@ -232,3 +232,88 @@ class VisualizationEngine:
         
         return vis_frame
     
+    def visualize_tracked_objects(self, frame: np.ndarray, 
+                                tracked_objects: dict, 
+                                paths: Optional[dict] = None,
+                                mask: Optional[np.ndarray] = None,
+                                u: Optional[np.ndarray] = None,
+                                v: Optional[np.ndarray] = None) -> np.ndarray:
+        """
+        Визуализация отслеживаемых объектов с плотным потоком штрихами.
+        
+        Args:
+            frame: Исходный кадр
+            tracked_objects: Словарь ID -> (x, y, w, h)
+            paths: Словарь ID -> Trajectory (deque of points)
+            mask: Маска движения (опционально, для наложения)
+            u, v: Компоненты оптического потока (для штрихов)
+            
+        Returns:
+            Изображение с визуализацией
+        """
+        vis_frame = frame.copy()
+        
+        # 1. Рисование штрихов плотного потока (если есть u, v)
+        if u is not None and v is not None:
+            # Рисуем штрихи только там, где есть движение (mask) или везде
+            # Для "плотного потока штрихами" обычно рисуют сетку
+            step = 20
+            scale = 1.0
+            height, width = u.shape
+            y, x = np.mgrid[step//2:height:step, step//2:width:step]
+            
+            flow_x = u[y, x]
+            flow_y = v[y, x]
+            
+            # Фильтрация по маске (если есть) или по величине
+            magnitude = np.sqrt(flow_x**2 + flow_y**2)
+            mask_indices = magnitude > 1.0  # Рисуем только если есть движение
+            
+            y = y[mask_indices]
+            x = x[mask_indices]
+            flow_x = flow_x[mask_indices]
+            flow_y = flow_y[mask_indices]
+            
+            for i in range(len(y)):
+                pt1 = (int(x[i]), int(y[i]))
+                pt2 = (int(pt1[0] + flow_x[i] * scale),
+                      int(pt1[1] + flow_y[i] * scale))
+                
+                # Цвет штриха (зеленый или по направлению)
+                color = (0, 255, 0) 
+                cv2.line(vis_frame, pt1, pt2, color, 1)
+                cv2.circle(vis_frame, pt1, 1, color, -1)
+
+        # 2. Если есть маска, накладываем её полупрозрачно (опционально, можно убрать если мешает штрихам)
+        # if mask is not None:
+        #     mask_bgr = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+        #     vis_frame = cv2.addWeighted(vis_frame, 0.8, mask_bgr, 0.2, 0)
+            
+        # 3. Рисование bounding box'ов и ID
+        for object_id, (x, y, w, h) in tracked_objects.items():
+            # Генерация цвета на основе ID
+            np.random.seed(object_id)
+            color = tuple(map(int, np.random.randint(0, 255, 3)))
+            
+            # Bounding box
+            cv2.rectangle(vis_frame, (x, y), (x + w, y + h), color, 2)
+            
+            # ID
+            text = f"ID {object_id}"
+            cv2.putText(vis_frame, text, (x, y - 10),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+            
+            # Центроид
+            cX = int(x + w / 2.0)
+            cY = int(y + h / 2.0)
+            cv2.circle(vis_frame, (cX, cY), 4, color, -1)
+            
+            # Траектория (Strokes)
+            if paths is not None and object_id in paths:
+                pts = paths[object_id]
+                for i in range(1, len(pts)):
+                    if pts[i - 1] is None or pts[i] is None:
+                        continue
+                    cv2.line(vis_frame, pts[i - 1], pts[i], color, 2)
+            
+        return vis_frame
