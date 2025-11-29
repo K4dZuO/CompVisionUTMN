@@ -251,6 +251,7 @@ class OpticalFlowMainWindow(QMainWindow):
         self.current_results: Optional[dict] = None
         self.current_algorithm: Optional[str] = None
         self.processing_thread: Optional[ProcessingThread] = None
+        self.is_playing: bool = False
         
         # Таймер для воспроизведения
         self.play_timer = QTimer()
@@ -434,22 +435,53 @@ class OpticalFlowMainWindow(QMainWindow):
         if self.video_controller is None:
             return
         
-        metadata = self.video_controller.get_metadata()
-        fps = metadata.get('fps', 30)
-        interval = int(1000 / fps)  # миллисекунды
-        
-        self.play_timer.start(interval)
+        self.is_playing = True
         self.video_controls.play_btn.setEnabled(False)
         self.video_controls.pause_btn.setEnabled(True)
+        
+        # Если включена авто-обработка, используем синхронный режим
+        if self.auto_reprocess_checkbox.isChecked() and self.current_algorithm is not None:
+            # Запускаем цикл обработки
+            self.process_next_frame_sync()
+        else:
+            # Обычный режим по таймеру
+            metadata = self.video_controller.get_metadata()
+            fps = metadata.get('fps', 30)
+            interval = int(1000 / fps)
+            self.play_timer.start(interval)
     
+    def process_next_frame_sync(self):
+        """
+        Переход к следующему кадру в синхронном режиме.
+        Вызывается либо при старте play, либо после завершения обработки предыдущего кадра.
+        """
+        if not self.is_playing:
+            return
+            
+        # Переходим к следующему кадру
+        frame = self.video_controller.get_next_frame()
+        if frame is not None:
+            self.display_frame(frame, self.original_label)
+            self.video_controls.set_current_frame(self.video_controller.current_frame_idx)
+            
+            # Запускаем обработку
+            # Примечание: process_current_frame сама проверит, не запущен ли уже поток,
+            # но в синхронном режиме мы гарантируем последовательность
+            self.process_current_frame()
+        else:
+            # Конец видео
+            self.pause_video()
+
     def pause_video(self):
         """Пауза воспроизведения."""
+        self.is_playing = False
         self.play_timer.stop()
         self.video_controls.play_btn.setEnabled(True)
         self.video_controls.pause_btn.setEnabled(False)
     
     def stop_video(self):
         """Остановка воспроизведения."""
+        self.is_playing = False
         self.play_timer.stop()
         if self.video_controller is not None:
             self.video_controller.set_frame(0)
@@ -504,8 +536,11 @@ class OpticalFlowMainWindow(QMainWindow):
                     self.display_frame(frame, self.original_label)
                     
                     # Если включена авто-обработка и был выбран алгоритм
-                    if self.auto_reprocess_checkbox.isChecked() and self.current_algorithm is not None:
-                        # Автоматически обрабатываем новый кадр
+                    # И мы НЕ в режиме воспроизведения (при воспроизведении обработка запускается синхронно)
+                    if (self.auto_reprocess_checkbox.isChecked() and 
+                        self.current_algorithm is not None and 
+                        not self.is_playing):
+                        # Автоматически обрабатываем новый кадр (ручная навигация)
                         self.process_current_frame()
                     else:
                         # НЕ сбрасываем результаты! Оставляем старую визуализацию
@@ -535,6 +570,10 @@ class OpticalFlowMainWindow(QMainWindow):
     
     def process_current_frame(self):
         """Обработка текущего кадра."""
+        # Защита от повторного запуска
+        if self.processing_thread is not None and self.processing_thread.isRunning():
+            return
+
         if self.video_controller is None:
             QMessageBox.warning(self, "Предупреждение", "Загрузите видео сначала")
             return
@@ -624,6 +663,11 @@ class OpticalFlowMainWindow(QMainWindow):
         # Обновление UI
         self.process_btn.setEnabled(True)
         self.progress_bar.setVisible(False)
+        
+        # Если мы в режиме синхронного воспроизведения, переходим к следующему кадру
+        if self.is_playing and self.auto_reprocess_checkbox.isChecked():
+            # Используем QTimer.singleShot для избежания переполнения стека рекурсией
+            QTimer.singleShot(1, self.process_next_frame_sync)
     
     def on_processing_error(self, error_msg: str):
         """Обработка ошибки обработки."""

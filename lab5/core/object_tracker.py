@@ -8,6 +8,7 @@
 
 import numpy as np
 import cv2
+import copy
 from typing import List, Tuple, Dict, Optional
 from collections import OrderedDict, deque
 from core.horn_schunck import HornSchunckProcessor
@@ -64,7 +65,7 @@ class CentroidTracker:
                 self.disappeared[object_id] += 1
                 if self.disappeared[object_id] > self.max_disappeared:
                     self.deregister(object_id)
-            return self.bboxes, self.paths
+            return dict(self.bboxes), copy.deepcopy(self.paths)
 
         input_centroids = np.zeros((len(rects), 2), dtype="int")
         for (i, (x, y, w, h)) in enumerate(rects):
@@ -124,7 +125,7 @@ class CentroidTracker:
             for col in unused_cols:
                 self.register(tuple(input_centroids[col]), rects[col])
 
-        return self.bboxes, self.paths
+        return dict(self.bboxes), copy.deepcopy(self.paths)
 
 
 class ObjectTracker:
