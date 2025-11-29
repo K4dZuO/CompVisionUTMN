@@ -43,6 +43,35 @@ from gui.controls import (AlgorithmParametersWidget, VideoControlsWidget,
                          VisualizationControlsWidget)
 
 
+class ResizableImageLabel(QLabel):
+    """QLabel, который масштабирует изображение с сохранением пропорций."""
+    
+    def __init__(self, text=""):
+        super().__init__(text)
+        self.setAlignment(Qt.AlignCenter)
+        self.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
+        self._original_pixmap = None
+    
+    def setPixmap(self, pixmap):
+        """Установка изображения с сохранением оригинала."""
+        self._original_pixmap = pixmap
+        self.update_display()
+        
+    def resizeEvent(self, event):
+        """Обработка изменения размера виджета."""
+        self.update_display()
+        super().resizeEvent(event)
+        
+    def update_display(self):
+        """Обновление отображаемого изображения с учетом текущего размера."""
+        if self._original_pixmap is not None and not self._original_pixmap.isNull():
+            # Масштабируем с сохранением пропорций (KeepAspectRatio)
+            scaled_pixmap = self._original_pixmap.scaled(
+                self.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
+            )
+            super().setPixmap(scaled_pixmap)
+
+
 class ProcessingThread(QThread):
     """Поток для асинхронной обработки оптического потока."""
     
@@ -317,12 +346,8 @@ class OpticalFlowMainWindow(QMainWindow):
         right_panel = QSplitter(Qt.Horizontal)
         
         # Исходное видео
-        self.original_label = QLabel("Исходное видео")
-        self.original_label.setAlignment(Qt.AlignCenter)
-        self.original_label.setMinimumSize(400, 300)
+        self.original_label = ResizableImageLabel("Исходное видео")
         self.original_label.setStyleSheet("border: 1px solid gray")
-        self.original_label.setScaledContents(True)
-        self.original_label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
         
         original_container = QWidget()
         original_layout = QVBoxLayout()
@@ -330,12 +355,8 @@ class OpticalFlowMainWindow(QMainWindow):
         original_container.setLayout(original_layout)
         
         # Результаты
-        self.result_label = QLabel("Результаты анализа")
-        self.result_label.setAlignment(Qt.AlignCenter)
-        self.result_label.setMinimumSize(400, 300)
+        self.result_label = ResizableImageLabel("Результаты анализа")
         self.result_label.setStyleSheet("border: 1px solid gray")
-        self.result_label.setScaledContents(True)
-        self.result_label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
         
         result_container = QWidget()
         result_layout = QVBoxLayout()
